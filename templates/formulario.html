@@ -1,16 +1,50 @@
 {% extends "base.html" %}
-{% block title %}Formulario{% endblock %}
+{% block title %}Gestión de Pedidos{% endblock %}
+
 {% block content %}
-  <h2>Formulario</h2>
-  <form method="POST">
-    <div class="mb-3">
-      <label>Nombre</label>
-      <input type="text" name="nombre" class="form-control" required>
-    </div>
-    <div class="mb-3">
-      <label>Email</label>
-      <input type="email" name="email" class="form-control" required>
-    </div>
-    <button class="btn btn-success">Guardar</button>
-  </form>
+<div class="container">
+  <h2 class="mb-4">Pedidos Registrados</h2>
+
+  <a href="{{ url_for('nuevo_pedido') }}" class="btn btn-success mb-3">➕ Nuevo Pedido</a>
+
+  <table class="table table-bordered table-striped">
+    <thead class="table-dark">
+      <tr>
+        <th>ID</th>
+        <th>Cliente</th>
+        <th>Servicio</th>
+        <th>Fecha Pedido</th>
+        <th>Fecha Entrega</th>
+        <th>Color</th>
+        <th>Unidades</th>
+        <th>Precio Unitario</th>
+        <th>Descuento</th>
+        <th>Usuario</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pedidos %}
+      <tr>
+        <td>{{ p.id_pedido }}</td>
+        <td>{{ p.cliente }}</td>
+        <td>{{ p.servicio }}</td>
+        <td>{{ p.fecha_pedido }}</td>
+        <td>{{ p.fecha_entrega }}</td>
+        <td>{{ p.color }}</td>
+        <td>{{ p.unidades }}</td>
+        <td>{{ p.precio_unitario }}</td>
+        <td>{{ p.descuentos }}</td>
+        <td>{{ p.usuario }}</td>
+        <td>
+          <a href="{{ url_for('editar_pedido', id_pedido=p.id_pedido) }}" class="btn btn-sm btn-warning">Editar</a>
+          <a href="{{ url_for('eliminar_pedido', id_pedido=p.id_pedido) }}"
+             class="btn btn-sm btn-danger"
+             onclick="return confirm('¿Seguro que quieres eliminar este pedido?');">Eliminar</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}

@@ -43,36 +43,28 @@ def panel():
 
 
 # ========== FORMULARIO ==========
-@app.route("/formulario", methods=["GET", "POST"])
+@app.route("/formulario")
 def formulario():
     if not session.get("loggedin"):
         return redirect(url_for("login"))
 
-    if request.method == "POST":
-        nombre = request.form["nombre"]
-        email = request.form["email"]
-
-        cursor = mysql.connection.cursor()
-        cursor.execute("INSERT INTO registros (nombre, email) VALUES (%s, %s)", (nombre, email))
-        mysql.connection.commit()
-
-        flash("Datos guardados correctamente", "success")
-        return redirect(url_for("tabla"))
-
-    return render_template("formulario.html")
-
-
-# ========== TABLA ==========
-@app.route("/tabla")
-def tabla():
-    if not session.get("loggedin"):
-        return redirect(url_for("login"))
-
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT * FROM pedidos")
-    datos = cursor.fetchall()
 
-    return render_template("tabla.html", datos=datos)
+    cursor.execute("""
+        SELECT p.id_pedido, c.nombre AS cliente, s.descripcion AS servicio,
+               p.fecha_pedido, p.fecha_entrega, col.nombre_color AS color,
+               p.unidades, p.precio_unitario, p.descuentos, p.usuario
+        FROM pedidos p
+        JOIN cliente c ON p.id_cliente = c.id_cliente
+        JOIN servicio s ON p.id_servicio = s.id_servicio
+        LEFT JOIN color col ON p.id_color = col.id_color
+        ORDER BY p.fecha_pedido DESC
+    """)
+    pedidos = cursor.fetchall()
+
+    return render_template("formulario.html", pedidos=pedidos)
+
+
 
 
 # ========= Crear Cliente ========

@@ -9,29 +9,26 @@
 <body>
 <div class="d-flex">
   <!-- Sidebar -->
-  <div class="bg-dark text-white p-3" style="width:250px; height:100vh;">
-  <h4>Menú</h4>
-  <ul class="nav flex-column">
-    <li class="nav-item">
-      <a href="{{ url_for('formulario') }}" class="nav-link text-white">Formulario</a>
-    </li>
-    <li class="nav-item">
-      <a href="{{ url_for('tabla') }}" class="nav-link text-white">Tabla</a>
-    </li>
-    <li class="nav-item">
-      <a href="{{ url_for('cliente') }}" class="nav-link text-white">➕ Nuevo Cliente</a>
-    </li>
-    <li class="nav-item">
-      <a href="{{ url_for('clientes') }}" class="nav-link text-white">📋 Lista de Clientes</a>
-    </li>
-     <li class="nav-item">
-        <a href="{{ url_for('nuevo_pedido') }}" class="nav-link text-white">➕ Nuevo Pedido</a>
-    </li>
-    <li class="nav-item">
-      <a href="{{ url_for('logout') }}" class="nav-link text-danger">Cerrar sesión</a>
-    </li>
-  </ul>
-</div>
+    <div class="bg-dark text-white p-3" style="width:250px; height:100vh;">
+        <h4>Menú</h4>
+            <ul class="nav flex-column">
+            <li class="nav-item">
+                <a href="{{ url_for('formulario') }}" class="nav-link text-white">📋 Pedidos</a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ url_for('nuevo_pedido') }}" class="nav-link text-white">➕ Nuevo Pedido</a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ url_for('clientes') }}" class="nav-link text-white">📋 Lista de Clientes</a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ url_for('cliente') }}" class="nav-link text-white">➕ Nuevo Cliente</a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ url_for('logout') }}" class="nav-link text-danger">Cerrar sesión</a>
+            </li>
+        </ul>
+    </div>
 
 
   <!-- Contenido -->
