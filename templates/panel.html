@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Panel{% endblock %}
 {% block content %}
+<div class="d-flex justify-content-center mb-4">
+  <img src="{{ url_for('static', filename='img/logo.png') }}"
+       alt="Logo"
+       style="max-width:150px;">
+</div>
+
+<div class="container text-center">
   <h2>Bienvenido {{ usuario }}</h2>
   <p>Selecciona una opción del menú lateral.</p>
+</div>
 {% endblock %}
