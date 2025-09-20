@@ -114,6 +114,7 @@ def clientes():
     return render_template("clientes.html", clientes=lista_clientes)
 
 
+
 @app.route("/cliente/editar/<int:id_cliente>", methods=["GET", "POST"])
 def editar_cliente(id_cliente):
     if not session.get("loggedin"):
@@ -137,13 +138,26 @@ def editar_cliente(id_cliente):
         """, (nombre, no_documento, direccion, ciudad, cp, telefono, correo, id_cliente))
         mysql.connection.commit()
 
-        flash("Cliente actualizado correctamente", "success")
+        flash("Cliente actualizado correctamente ✅", "success")
         return redirect(url_for("clientes"))
 
-    # Si es GET, traemos los datos del cliente
+    # Si es GET, obtenemos los datos para mostrar en el formulario
     cursor.execute("SELECT * FROM cliente WHERE id_cliente=%s", (id_cliente,))
     cliente = cursor.fetchone()
+
     return render_template("editar_cliente.html", cliente=cliente)
+
+@app.route("/cliente/eliminar/<int:id_cliente>")
+def eliminar_cliente(id_cliente):
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor()
+    cursor.execute("DELETE FROM cliente WHERE id_cliente = %s", (id_cliente,))
+    mysql.connection.commit()
+
+    flash("Cliente eliminado correctamente 🗑️", "success")
+    return redirect(url_for("clientes"))
 
 
 if __name__ == "__main__":
