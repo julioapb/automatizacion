@@ -159,6 +159,50 @@ def eliminar_cliente(id_cliente):
     flash("Cliente eliminado correctamente 🗑️", "success")
     return redirect(url_for("clientes"))
 
+@app.route("/pedido/nuevo", methods=["GET", "POST"])
+def nuevo_pedido():
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Traer clientes y colores de la BD
+    cursor.execute("SELECT id_cliente, nombre FROM cliente")
+    clientes = cursor.fetchall()
+
+    cursor.execute("SELECT id_color, nombre_color FROM color")
+    colores = cursor.fetchall()
+
+    cursor.execute("SELECT id_servicio, descripcion FROM servicio")
+    servicios = cursor.fetchall()
+
+    if request.method == "POST":
+        id_cliente = request.form.get("id_cliente")
+        id_servicio = request.form.get("id_servicio")
+        fecha_pedido = request.form.get("fecha_pedido")
+        fecha_entrega = request.form.get("fecha_entrega")
+        id_color = request.form.get("id_color")
+        unidades = request.form.get("unidades")
+        precio_unitario = request.form.get("precio_unitario")
+        descuentos = request.form.get("descuentos")
+        usuario = session["usuario"]
+
+        cursor.execute("""
+            INSERT INTO pedidos (id_cliente, id_servicio, fecha_pedido, fecha_entrega,
+                                 id_color, unidades, precio_unitario, descuentos, usuario)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (id_cliente, id_servicio, fecha_pedido, fecha_entrega,
+              id_color, unidades, precio_unitario, descuentos, usuario))
+        mysql.connection.commit()
+
+        flash("Pedido registrado correctamente ✅", "success")
+        return redirect(url_for("tabla"))  # O donde quieras mostrar pedidos
+
+    return render_template("pedido_form.html",
+                           clientes=clientes,
+                           colores=colores,
+                           servicios=servicios)
+
 
 if __name__ == "__main__":
     app.run(debug=True)

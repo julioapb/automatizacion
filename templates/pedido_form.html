@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Nuevo Pedido{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Registrar Pedido</h2>
+  <form method="POST">
+
+    <!-- Cliente -->
+    <div class="mb-3">
+      <label class="form-label">Cliente</label>
+      <select class="form-select" name="id_cliente" required>
+        <option value="">-- Selecciona un cliente --</option>
+        {% for c in clientes %}
+        <option value="{{ c.id_cliente }}">{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Servicio -->
+    <div class="mb-3">
+      <label class="form-label">Servicio</label>
+      <select class="form-select" name="id_servicio" required>
+        <option value="">-- Selecciona un servicio --</option>
+        {% for s in servicios %}
+        <option value="{{ s.id_servicio }}">{{ s.descripcion }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Fechas -->
+    <div class="mb-3">
+      <label class="form-label">Fecha Pedido</label>
+      <input type="date" class="form-control" name="fecha_pedido" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Fecha Entrega</label>
+      <input type="date" class="form-control" name="fecha_entrega">
+    </div>
+
+    <!-- Color -->
+    <div class="mb-3">
+      <label class="form-label">Color</label>
+      <select class="form-select" name="id_color">
+        <option value="">-- Selecciona un color --</option>
+        {% for col in colores %}
+        <option value="{{ col.id_color }}">{{ col.nombre_color }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Datos del pedido -->
+    <div class="mb-3">
+      <label class="form-label">Unidades</label>
+      <input type="number" class="form-control" name="unidades" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Precio Unitario</label>
+      <input type="number" step="0.01" class="form-control" name="precio_unitario" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Descuentos</label>
+      <input type="number" step="0.01" class="form-control" name="descuentos" value="0">
+    </div>
+
+    <button type="submit" class="btn btn-success">Guardar Pedido</button>
+  </form>
+</div>
+{% endblock %}
