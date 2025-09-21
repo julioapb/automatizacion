@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Colores{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Colores Registrados</h2>
+  <a href="{{ url_for('nuevo_color') }}" class="btn btn-success mb-3">➕ Nuevo Color</a>
+  <table class="table table-bordered">
+    <thead class="table-dark">
+      <tr><th>ID</th><th>Código</th><th>Nombre</th></tr>
+    </thead>
+    <tbody>
+      {% for col in colores %}
+      <tr>
+        <td>{{ col.id_color }}</td>
+        <td>{{ col.codigo_color }}</td>
+        <td>{{ col.nombre_color }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

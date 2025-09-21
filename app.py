@@ -188,12 +188,74 @@ def nuevo_pedido():
         mysql.connection.commit()
 
         flash("Pedido registrado correctamente ✅", "success")
-        return redirect(url_for("tabla"))  # O donde quieras mostrar pedidos
+        return redirect(url_for("formulario"))  # O donde quieras mostrar pedidos
 
     return render_template("pedido_form.html",
                            clientes=clientes,
                            colores=colores,
                            servicios=servicios)
+
+
+# --- Nuevo color ---
+# --- Lista de colores ---
+@app.route("/colores")
+def colores():
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("SELECT * FROM color ORDER BY id_color DESC")
+    lista_colores = cursor.fetchall()
+    return render_template("colores.html", colores=lista_colores)
+
+# --- Nuevo color ---
+@app.route("/color/nuevo", methods=["GET", "POST"])
+def nuevo_color():
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        codigo = request.form.get("codigo_color")
+        nombre = request.form.get("nombre_color")
+
+        cursor = mysql.connection.cursor()
+        cursor.execute("INSERT INTO color (codigo_color, nombre_color) VALUES (%s, %s)", (codigo, nombre))
+        mysql.connection.commit()
+
+        flash("Color agregado correctamente ✅", "success")
+        return redirect(url_for("colores"))
+
+    return render_template("color_form.html")
+
+# --- Lista de servicios ---
+@app.route("/servicios")
+def servicios():
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("SELECT * FROM servicio ORDER BY id_servicio DESC")
+    lista_servicios = cursor.fetchall()
+    return render_template("servicios.html", servicios=lista_servicios)
+
+# --- Nuevo servicio ---
+@app.route("/servicio/nuevo", methods=["GET", "POST"])
+def nuevo_servicio():
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        descripcion = request.form.get("descripcion")
+        precio = request.form.get("precio")
+
+        cursor = mysql.connection.cursor()
+        cursor.execute("INSERT INTO servicio (descripcion, precio) VALUES (%s, %s)", (descripcion, precio))
+        mysql.connection.commit()
+
+        flash("Servicio agregado correctamente ✅", "success")
+        return redirect(url_for("servicios"))
+
+    return render_template("servicio_form.html")
 
 
 if __name__ == "__main__":

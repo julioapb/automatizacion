@@ -37,10 +37,7 @@
         <td>{{ p.descuentos }}</td>
         <td>{{ p.usuario }}</td>
         <td>
-          <a href="{{ url_for('editar_pedido', id_pedido=p.id_pedido) }}" class="btn btn-sm btn-warning">Editar</a>
-          <a href="{{ url_for('eliminar_pedido', id_pedido=p.id_pedido) }}"
-             class="btn btn-sm btn-danger"
-             onclick="return confirm('¿Seguro que quieres eliminar este pedido?');">Eliminar</a>
+          
         </td>
       </tr>
       {% endfor %}

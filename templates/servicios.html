@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Servicios{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Servicios Registrados</h2>
+  <a href="{{ url_for('nuevo_servicio') }}" class="btn btn-success mb-3">➕ Nuevo Servicio</a>
+  <table class="table table-bordered">
+    <thead class="table-dark">
+      <tr><th>ID</th><th>Descripción</th><th>Precio</th></tr>
+    </thead>
+    <tbody>
+      {% for s in servicios %}
+      <tr>
+        <td>{{ s.id_servicio }}</td>
+        <td>{{ s.descripcion }}</td>
+        <td>{{ s.precio }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
