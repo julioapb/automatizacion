@@ -3,3 +3,4 @@ MYSQL_USER = 'root'
 MYSQL_PASSWORD = ''
 MYSQL_DB = 'automatizacion'
 SECRET_KEY = 'S3g5r1d4d123'
+MYSQL_PORT = 3306

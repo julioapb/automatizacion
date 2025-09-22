@@ -1,23 +1,32 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from flask_mysqldb import MySQL
-import MySQLdb.cursors
+import mysql.connector
 
 app = Flask(__name__)
 app.config.from_pyfile("config.py")
 
-mysql = MySQL(app)
+# ===== Función de conexión =====
+def get_db_connection():
+    return mysql.connector.connect(
+        host=app.config["MYSQL_HOST"],
+        user=app.config["MYSQL_USER"],
+        password=app.config["MYSQL_PASSWORD"],
+        database=app.config["MYSQL_DB"],
+        port=app.config["MYSQL_PORT"]
+    )
 
-
-# ========== RUTAS DE AUTENTICACIÓN ==========
+# ========== LOGIN ==========
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         usuario = request.form["usuario"]
         password = request.form["password"]
 
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM usuarios WHERE usuario=%s AND password=%s", (usuario, password))
         user = cursor.fetchone()
+        cursor.close()
+        conn.close()
 
         if user:
             session["loggedin"] = True
@@ -27,12 +36,10 @@ def login():
             flash("Usuario o contraseña incorrectos", "danger")
     return render_template("login.html")
 
-
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
-
 
 # ========== PANEL ==========
 @app.route("/panel")
@@ -41,15 +48,14 @@ def panel():
         return redirect(url_for("login"))
     return render_template("panel.html", usuario=session["usuario"])
 
-
-# ========== FORMULARIO ==========
+# ========== LISTAR PEDIDOS ==========
 @app.route("/formulario")
 def formulario():
     if not session.get("loggedin"):
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT p.id_pedido, c.nombre AS cliente, s.descripcion AS servicio,
                p.fecha_pedido, p.fecha_entrega, col.nombre_color AS color,
@@ -61,14 +67,12 @@ def formulario():
         ORDER BY p.fecha_pedido DESC
     """)
     pedidos = cursor.fetchall()
+    cursor.close()
+    conn.close()
 
     return render_template("formulario.html", pedidos=pedidos)
 
-
-
-
-# ========= Crear Cliente ========
-
+# ========= CREAR CLIENTE ========
 @app.route("/cliente", methods=["GET", "POST"])
 def cliente():
     if request.method == "POST":
@@ -80,39 +84,44 @@ def cliente():
         telefono = request.form.get("telefono")
         correo = request.form.get("correo")
 
-        cursor = mysql.connection.cursor()
+        conn = get_db_connection()
+        cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO cliente (nombre, no_documento, direccion, ciudad, cp, telefono, correo)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (nombre, no_documento, direccion, ciudad, cp, telefono, correo))
-        mysql.connection.commit()
+        conn.commit()
+        cursor.close()
+        conn.close()
 
-        flash("Cliente registrado correctamente", "success")
-        return redirect(url_for("panel"))   # o redirige donde quieras
+        flash("Cliente registrado correctamente ✅", "success")
+        return redirect(url_for("clientes"))
 
     return render_template("cliente.html")
 
-# ====== Clientes 
-
+# ====== LISTAR CLIENTES ======
 @app.route("/clientes")
 def clientes():
     if not session.get("loggedin"):
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM cliente")
     lista_clientes = cursor.fetchall()
+    cursor.close()
+    conn.close()
 
     return render_template("clientes.html", clientes=lista_clientes)
 
-
-
+# ====== EDITAR CLIENTE ======
 @app.route("/cliente/editar/<int:id_cliente>", methods=["GET", "POST"])
 def editar_cliente(id_cliente):
     if not session.get("loggedin"):
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
 
     if request.method == "POST":
         nombre = request.form.get("nombre")
@@ -128,37 +137,45 @@ def editar_cliente(id_cliente):
             SET nombre=%s, no_documento=%s, direccion=%s, ciudad=%s, cp=%s, telefono=%s, correo=%s
             WHERE id_cliente=%s
         """, (nombre, no_documento, direccion, ciudad, cp, telefono, correo, id_cliente))
-        mysql.connection.commit()
+        conn.commit()
+        cursor.close()
+        conn.close()
 
         flash("Cliente actualizado correctamente ✅", "success")
         return redirect(url_for("clientes"))
 
-    # Si es GET, obtenemos los datos para mostrar en el formulario
     cursor.execute("SELECT * FROM cliente WHERE id_cliente=%s", (id_cliente,))
     cliente = cursor.fetchone()
+    cursor.close()
+    conn.close()
 
     return render_template("editar_cliente.html", cliente=cliente)
 
+# ====== ELIMINAR CLIENTE ======
 @app.route("/cliente/eliminar/<int:id_cliente>")
 def eliminar_cliente(id_cliente):
     if not session.get("loggedin"):
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor()
-    cursor.execute("DELETE FROM cliente WHERE id_cliente = %s", (id_cliente,))
-    mysql.connection.commit()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM cliente WHERE id_cliente=%s", (id_cliente,))
+    conn.commit()
+    cursor.close()
+    conn.close()
 
     flash("Cliente eliminado correctamente 🗑️", "success")
     return redirect(url_for("clientes"))
 
+# ========= CREAR PEDIDO ========
 @app.route("/pedido/nuevo", methods=["GET", "POST"])
 def nuevo_pedido():
     if not session.get("loggedin"):
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
 
-    # Traer clientes y colores de la BD
     cursor.execute("SELECT id_cliente, nombre FROM cliente")
     clientes = cursor.fetchall()
 
@@ -179,36 +196,26 @@ def nuevo_pedido():
         descuentos = request.form.get("descuentos")
         usuario = session["usuario"]
 
+        cursor.close()
+        cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO pedidos (id_cliente, id_servicio, fecha_pedido, fecha_entrega,
                                  id_color, unidades, precio_unitario, descuentos, usuario)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (id_cliente, id_servicio, fecha_pedido, fecha_entrega,
               id_color, unidades, precio_unitario, descuentos, usuario))
-        mysql.connection.commit()
+        conn.commit()
+        cursor.close()
+        conn.close()
 
         flash("Pedido registrado correctamente ✅", "success")
-        return redirect(url_for("formulario"))  # O donde quieras mostrar pedidos
+        return redirect(url_for("formulario"))
 
-    return render_template("pedido_form.html",
-                           clientes=clientes,
-                           colores=colores,
-                           servicios=servicios)
+    cursor.close()
+    conn.close()
+    return render_template("pedido_form.html", clientes=clientes, colores=colores, servicios=servicios)
 
-
-# --- Nuevo color ---
-# --- Lista de colores ---
-@app.route("/colores")
-def colores():
-    if not session.get("loggedin"):
-        return redirect(url_for("login"))
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT * FROM color ORDER BY id_color DESC")
-    lista_colores = cursor.fetchall()
-    return render_template("colores.html", colores=lista_colores)
-
-# --- Nuevo color ---
+# ========= CREAR COLOR ========
 @app.route("/color/nuevo", methods=["GET", "POST"])
 def nuevo_color():
     if not session.get("loggedin"):
@@ -218,27 +225,51 @@ def nuevo_color():
         codigo = request.form.get("codigo_color")
         nombre = request.form.get("nombre_color")
 
-        cursor = mysql.connection.cursor()
-        cursor.execute("INSERT INTO color (codigo_color, nombre_color) VALUES (%s, %s)", (codigo, nombre))
-        mysql.connection.commit()
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO color (codigo_color, nombre_color) VALUES (%s, %s)",
+            (codigo, nombre)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
 
         flash("Color agregado correctamente ✅", "success")
         return redirect(url_for("colores"))
 
     return render_template("color_form.html")
 
-# --- Lista de servicios ---
+
+@app.route("/colores")
+def colores():
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM color ORDER BY id_color DESC")
+    lista_colores = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return render_template("colores.html", colores=lista_colores)
+
 @app.route("/servicios")
 def servicios():
     if not session.get("loggedin"):
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM servicio ORDER BY id_servicio DESC")
     lista_servicios = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
     return render_template("servicios.html", servicios=lista_servicios)
 
-# --- Nuevo servicio ---
+# ========= CREAR SERVICIO ========
 @app.route("/servicio/nuevo", methods=["GET", "POST"])
 def nuevo_servicio():
     if not session.get("loggedin"):
@@ -248,9 +279,15 @@ def nuevo_servicio():
         descripcion = request.form.get("descripcion")
         precio = request.form.get("precio")
 
-        cursor = mysql.connection.cursor()
-        cursor.execute("INSERT INTO servicio (descripcion, precio) VALUES (%s, %s)", (descripcion, precio))
-        mysql.connection.commit()
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO servicio (descripcion, precio) VALUES (%s, %s)",
+            (descripcion, precio)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
 
         flash("Servicio agregado correctamente ✅", "success")
         return redirect(url_for("servicios"))
@@ -260,3 +297,6 @@ def nuevo_servicio():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+
+
