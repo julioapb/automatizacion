@@ -1,47 +1,49 @@
 {% extends "base.html" %}
-{% block title %}Gestión de Pedidos{% endblock %}
+{% block title %}Pedidos{% endblock %}
 
 {% block content %}
 <div class="container">
-  <h2 class="mb-4">Pedidos Registrados</h2>
+  <h2 class="mb-4">Listado de Pedidos</h2>
 
-  <a href="{{ url_for('nuevo_pedido') }}" class="btn btn-success mb-3">➕ Nuevo Pedido</a>
+  {% for p in pedidos %}
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header bg-dark text-white">
+      <strong>Pedido {{ p.numero_pedido }}</strong> - Cliente: {{ p.cliente }}
+    </div>
+    <div class="card-body">
+      <p><strong>Fecha Pedido:</strong> {{ p.fecha_pedido }}</p>
+      <p><strong>Fecha Entrega:</strong> {{ p.fecha_entrega }}</p>
+      <p><strong>Usuario:</strong> {{ p.usuario }}</p>
 
-  <table class="table table-bordered table-striped">
-    <thead class="table-dark">
-      <tr>
-        <th>ID</th>
-        <th>Cliente</th>
-        <th>Servicio</th>
-        <th>Fecha Pedido</th>
-        <th>Fecha Entrega</th>
-        <th>Color</th>
-        <th>Unidades</th>
-        <th>Precio Unitario</th>
-        <th>Descuento</th>
-        <th>Usuario</th>
-        <th>Acciones</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for p in pedidos %}
-      <tr>
-        <td>{{ p.id_pedido }}</td>
-        <td>{{ p.cliente }}</td>
-        <td>{{ p.servicio }}</td>
-        <td>{{ p.fecha_pedido }}</td>
-        <td>{{ p.fecha_entrega }}</td>
-        <td>{{ p.color }}</td>
-        <td>{{ p.unidades }}</td>
-        <td>{{ p.precio_unitario }}</td>
-        <td>{{ p.descuentos }}</td>
-        <td>{{ p.usuario }}</td>
-        <td>
-          
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      <h5 class="mt-3">Servicios Asociados</h5>
+      <table class="table table-bordered table-striped">
+        <thead class="table-dark">
+          <tr>
+            <th>Servicio</th>
+            <th>Color</th>
+            <th>Unidades</th>
+            <th>Costo Unitario</th>
+            <th>Descuento</th>
+            <th>Neto</th>
+            <th>Fecha Recepción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in p.servicios %}
+          <tr>
+            <td>{{ s.servicio }}</td>
+            <td>{{ s.color }}</td>
+            <td>{{ s.cantidad }}</td>
+            <td>{{ s.precio_unitario }}</td>
+            <td>{{ s.descuento }}</td>
+            <td>{{ s.neto }}</td>
+            <td>{{ s.fecha_recepcion }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
 </div>
 {% endblock %}

@@ -48,29 +48,7 @@ def panel():
         return redirect(url_for("login"))
     return render_template("panel.html", usuario=session["usuario"])
 
-# ========== LISTAR PEDIDOS ==========
-@app.route("/formulario")
-def formulario():
-    if not session.get("loggedin"):
-        return redirect(url_for("login"))
 
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT p.id_pedido, c.nombre AS cliente, s.descripcion AS servicio,
-               p.fecha_pedido, p.fecha_entrega, col.nombre_color AS color,
-               p.unidades, p.precio_unitario, p.descuentos, p.usuario
-        FROM pedidos p
-        JOIN cliente c ON p.id_cliente = c.id_cliente
-        JOIN servicio s ON p.id_servicio = s.id_servicio
-        LEFT JOIN color col ON p.id_color = col.id_color
-        ORDER BY p.fecha_pedido DESC
-    """)
-    pedidos = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    return render_template("formulario.html", pedidos=pedidos)
 
 # ========= CREAR CLIENTE ========
 @app.route("/cliente", methods=["GET", "POST"])
@@ -176,6 +154,7 @@ def nuevo_pedido():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
+    # Listar clientes, colores y servicios
     cursor.execute("SELECT id_cliente, nombre FROM cliente")
     clientes = cursor.fetchall()
 
@@ -186,25 +165,46 @@ def nuevo_pedido():
     servicios = cursor.fetchall()
 
     if request.method == "POST":
+        numero_pedido = request.form.get("numero_pedido")
         id_cliente = request.form.get("id_cliente")
-        id_servicio = request.form.get("id_servicio")
         fecha_pedido = request.form.get("fecha_pedido")
         fecha_entrega = request.form.get("fecha_entrega")
-        id_color = request.form.get("id_color")
-        unidades = request.form.get("unidades")
-        precio_unitario = request.form.get("precio_unitario")
-        descuentos = request.form.get("descuentos")
         usuario = session["usuario"]
 
+        # Insertar pedido general
         cursor.close()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO pedidos (id_cliente, id_servicio, fecha_pedido, fecha_entrega,
-                                 id_color, unidades, precio_unitario, descuentos, usuario)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (id_cliente, id_servicio, fecha_pedido, fecha_entrega,
-              id_color, unidades, precio_unitario, descuentos, usuario))
+            INSERT INTO pedidos (numero_pedido, id_cliente, fecha_pedido, fecha_entrega, usuario)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (numero_pedido, id_cliente, fecha_pedido, fecha_entrega, usuario))
         conn.commit()
+        id_pedido = cursor.lastrowid
+
+        # Insertar servicios asociados
+        servicios_ids = request.form.getlist("id_servicio[]")
+        colores_ids = request.form.getlist("id_color[]")
+        cantidades = request.form.getlist("cantidad[]")
+        precios = request.form.getlist("precio_unitario[]")
+        descuentos = request.form.getlist("descuento[]")
+        fechas_recepcion = request.form.getlist("fecha_recepcion[]")
+
+        for i in range(len(servicios_ids)):
+            cursor.execute("""
+                INSERT INTO pedido_servicio
+                (id_pedido, id_servicio, id_color, cantidad, precio_unitario, descuento, fecha_recepcion)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (
+                id_pedido,
+                servicios_ids[i],
+                colores_ids[i],
+                cantidades[i],
+                precios[i],
+                descuentos[i] if descuentos[i] else 0,
+                fechas_recepcion[i]
+            ))
+        conn.commit()
+
         cursor.close()
         conn.close()
 
@@ -214,6 +214,62 @@ def nuevo_pedido():
     cursor.close()
     conn.close()
     return render_template("pedido_form.html", clientes=clientes, colores=colores, servicios=servicios)
+
+
+
+# ========== LISTAR PEDIDOS ==========
+@app.route("/formulario")
+def formulario():
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT p.id_pedido, p.numero_pedido, c.nombre AS cliente,
+               p.fecha_pedido, p.fecha_entrega, p.usuario,
+               s.descripcion AS servicio, col.nombre_color AS color,
+               ps.cantidad, ps.precio_unitario, ps.descuento, ps.neto, ps.fecha_recepcion
+        FROM pedidos p
+        JOIN cliente c ON p.id_cliente = c.id_cliente
+        LEFT JOIN pedido_servicio ps ON p.id_pedido = ps.id_pedido
+        LEFT JOIN servicio s ON ps.id_servicio = s.id_servicio
+        LEFT JOIN color col ON ps.id_color = col.id_color
+        ORDER BY p.fecha_pedido DESC, p.id_pedido DESC
+    """)
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    # Agrupar por pedido
+    pedidos = {}
+    for row in rows:
+        id_pedido = row["id_pedido"]
+        if id_pedido not in pedidos:
+            pedidos[id_pedido] = {
+                "id_pedido": id_pedido,
+                "numero_pedido": row["numero_pedido"],
+                "cliente": row["cliente"],
+                "fecha_pedido": row["fecha_pedido"],
+                "fecha_entrega": row["fecha_entrega"],
+                "usuario": row["usuario"],
+                "servicios": []
+            }
+        if row["servicio"]:
+            pedidos[id_pedido]["servicios"].append({
+                "servicio": row["servicio"],
+                "color": row["color"],
+                "cantidad": row["cantidad"],
+                "precio_unitario": row["precio_unitario"],
+                "descuento": row["descuento"],
+                "neto": row["neto"],
+                "fecha_recepcion": row["fecha_recepcion"]
+            })
+
+    return render_template("formulario.html", pedidos=pedidos.values())
+
+
 
 # ========= CREAR COLOR ========
 @app.route("/color/nuevo", methods=["GET", "POST"])
@@ -276,23 +332,30 @@ def nuevo_servicio():
         return redirect(url_for("login"))
 
     if request.method == "POST":
+        referencia = request.form.get("referencia")
         descripcion = request.form.get("descripcion")
         precio = request.form.get("precio")
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO servicio (descripcion, precio) VALUES (%s, %s)",
-            (descripcion, precio)
-        )
-        conn.commit()
+
+        try:
+            cursor.execute("""
+                INSERT INTO servicio (referencia, descripcion, precio)
+                VALUES (%s, %s, %s)
+            """, (referencia, descripcion, precio))
+            conn.commit()
+            flash("Servicio agregado correctamente ✅", "success")
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error: {str(e)}", "danger")
+
         cursor.close()
         conn.close()
-
-        flash("Servicio agregado correctamente ✅", "success")
         return redirect(url_for("servicios"))
 
     return render_template("servicio_form.html")
+
 
 
 if __name__ == "__main__":
