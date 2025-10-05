@@ -136,13 +136,23 @@ def eliminar_cliente(id_cliente):
         return redirect(url_for("login"))
 
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM cliente WHERE id_cliente=%s", (id_cliente,))
-    conn.commit()
+    cursor = conn.cursor(dictionary=True)
+
+    # Verificar si hay pedidos asociados
+    cursor.execute("SELECT COUNT(*) AS total FROM pedidos WHERE id_cliente=%s", (id_cliente,))
+    total = cursor.fetchone()["total"]
+
+    if total > 0:
+        flash("❌ No se puede eliminar el cliente, tiene pedidos asociados.", "danger")
+    else:
+        cursor.close()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM cliente WHERE id_cliente=%s", (id_cliente,))
+        conn.commit()
+        flash("Cliente eliminado correctamente 🗑️", "success")
+
     cursor.close()
     conn.close()
-
-    flash("Cliente eliminado correctamente 🗑️", "success")
     return redirect(url_for("clientes"))
 
 # ========= CREAR PEDIDO ========
@@ -209,7 +219,7 @@ def nuevo_pedido():
         conn.close()
 
         flash("Pedido registrado correctamente ✅", "success")
-        return redirect(url_for("formulario"))
+        return redirect(url_for("pedidos"))
 
     cursor.close()
     conn.close()
@@ -218,8 +228,8 @@ def nuevo_pedido():
 
 
 # ========== LISTAR PEDIDOS ==========
-@app.route("/formulario")
-def formulario():
+@app.route("/pedidos")
+def pedidos():
     if not session.get("loggedin"):
         return redirect(url_for("login"))
 
@@ -242,12 +252,11 @@ def formulario():
     cursor.close()
     conn.close()
 
-    # Agrupar por pedido
-    pedidos = {}
+    pedidos_dict = {}
     for row in rows:
         id_pedido = row["id_pedido"]
-        if id_pedido not in pedidos:
-            pedidos[id_pedido] = {
+        if id_pedido not in pedidos_dict:
+            pedidos_dict[id_pedido] = {
                 "id_pedido": id_pedido,
                 "numero_pedido": row["numero_pedido"],
                 "cliente": row["cliente"],
@@ -257,7 +266,7 @@ def formulario():
                 "servicios": []
             }
         if row["servicio"]:
-            pedidos[id_pedido]["servicios"].append({
+            pedidos_dict[id_pedido]["servicios"].append({
                 "servicio": row["servicio"],
                 "color": row["color"],
                 "cantidad": row["cantidad"],
@@ -267,7 +276,8 @@ def formulario():
                 "fecha_recepcion": row["fecha_recepcion"]
             })
 
-    return render_template("formulario.html", pedidos=pedidos.values())
+    return render_template("pedidos.html", pedidos=pedidos_dict.values())
+
 
 
 
@@ -356,6 +366,43 @@ def nuevo_servicio():
 
     return render_template("servicio_form.html")
 
+@app.route("/servicio/editar/<int:id_servicio>", methods=["GET", "POST"])
+def editar_servicio(id_servicio):
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    if request.method == "POST":
+        referencia = request.form.get("referencia")
+        descripcion = request.form.get("descripcion")
+        precio = request.form.get("precio")
+
+        try:
+            cursor.close()
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE servicio
+                SET referencia=%s, descripcion=%s, precio=%s
+                WHERE id_servicio=%s
+            """, (referencia, descripcion, precio, id_servicio))
+            conn.commit()
+            flash("Servicio actualizado correctamente ✅", "success")
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error: {str(e)}", "danger")
+
+        cursor.close()
+        conn.close()
+        return redirect(url_for("servicios"))
+
+    cursor.execute("SELECT * FROM servicio WHERE id_servicio=%s", (id_servicio,))
+    servicio = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    return render_template("editar_servicio.html", servicio=servicio)
 
 
 if __name__ == "__main__":
