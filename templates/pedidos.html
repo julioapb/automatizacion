@@ -16,12 +16,14 @@
       <p><strong>Usuario:</strong> {{ p.usuario }}</p>
 
       <h5 class="mt-3">Servicios Asociados</h5>
-      <table class="table table-bordered table-striped">
+      <table class="table table-bordered table-striped align-middle text-center">
         <thead class="table-dark">
           <tr>
             <th>Servicio</th>
             <th>Color</th>
             <th>Unidades</th>
+            <th>Artículos/Caja</th>
+            <th>Cajas Necesarias</th>
             <th>Costo Unitario</th>
             <th>Descuento</th>
             <th>Neto</th>
@@ -34,6 +36,8 @@
             <td>{{ s.servicio }}</td>
             <td>{{ s.color }}</td>
             <td>{{ s.cantidad }}</td>
+            <td>{{ s.articulos_por_caja }}</td>
+            <td><strong>{{ s.cajas_necesarias }}</strong></td>
             <td>{{ s.precio_unitario }}</td>
             <td>{{ s.descuento }}</td>
             <td>{{ s.neto }}</td>
@@ -42,6 +46,7 @@
           {% endfor %}
         </tbody>
       </table>
+
     </div>
   </div>
   {% endfor %}

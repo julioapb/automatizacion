@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import mysql.connector
+import math
 
 app = Flask(__name__)
 app.config.from_pyfile("config.py")
@@ -236,11 +237,18 @@ def pedidos():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
+    # Consulta con cálculo de cajas necesarias
     cursor.execute("""
-        SELECT p.id_pedido, p.numero_pedido, c.nombre AS cliente,
-               p.fecha_pedido, p.fecha_entrega, p.usuario,
-               s.descripcion AS servicio, col.nombre_color AS color,
-               ps.cantidad, ps.precio_unitario, ps.descuento, ps.neto, ps.fecha_recepcion
+        SELECT 
+            p.id_pedido, p.numero_pedido, c.nombre AS cliente,
+            p.fecha_pedido, p.fecha_entrega, p.usuario,
+            s.descripcion AS servicio, s.articulos_por_caja,
+            col.nombre_color AS color,
+            ps.cantidad, ps.precio_unitario, ps.descuento, ps.neto, ps.fecha_recepcion,
+            CASE 
+                WHEN s.articulos_por_caja > 0 THEN CEIL(ps.cantidad / s.articulos_por_caja)
+                ELSE 0
+            END AS cajas_necesarias
         FROM pedidos p
         JOIN cliente c ON p.id_cliente = c.id_cliente
         LEFT JOIN pedido_servicio ps ON p.id_pedido = ps.id_pedido
@@ -248,10 +256,12 @@ def pedidos():
         LEFT JOIN color col ON ps.id_color = col.id_color
         ORDER BY p.fecha_pedido DESC, p.id_pedido DESC
     """)
+
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
 
+    # Agrupar pedidos por ID
     pedidos_dict = {}
     for row in rows:
         id_pedido = row["id_pedido"]
@@ -265,6 +275,7 @@ def pedidos():
                 "usuario": row["usuario"],
                 "servicios": []
             }
+
         if row["servicio"]:
             pedidos_dict[id_pedido]["servicios"].append({
                 "servicio": row["servicio"],
@@ -273,10 +284,13 @@ def pedidos():
                 "precio_unitario": row["precio_unitario"],
                 "descuento": row["descuento"],
                 "neto": row["neto"],
-                "fecha_recepcion": row["fecha_recepcion"]
+                "fecha_recepcion": row["fecha_recepcion"],
+                "articulos_por_caja": row["articulos_por_caja"],
+                "cajas_necesarias": row["cajas_necesarias"]
             })
 
     return render_template("pedidos.html", pedidos=pedidos_dict.values())
+
 
 
 
@@ -345,15 +359,16 @@ def nuevo_servicio():
         referencia = request.form.get("referencia")
         descripcion = request.form.get("descripcion")
         precio = request.form.get("precio")
+        articulos_por_caja = request.form.get("articulos_por_caja")  # 👈 nuevo campo
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
         try:
             cursor.execute("""
-                INSERT INTO servicio (referencia, descripcion, precio)
-                VALUES (%s, %s, %s)
-            """, (referencia, descripcion, precio))
+                INSERT INTO servicio (referencia, descripcion, precio, articulos_por_caja)
+                VALUES (%s, %s, %s, %s)
+            """, (referencia, descripcion, precio, articulos_por_caja))
             conn.commit()
             flash("Servicio agregado correctamente ✅", "success")
         except Exception as e:
@@ -365,6 +380,7 @@ def nuevo_servicio():
         return redirect(url_for("servicios"))
 
     return render_template("servicio_form.html")
+
 
 @app.route("/servicio/editar/<int:id_servicio>", methods=["GET", "POST"])
 def editar_servicio(id_servicio):
@@ -378,15 +394,16 @@ def editar_servicio(id_servicio):
         referencia = request.form.get("referencia")
         descripcion = request.form.get("descripcion")
         precio = request.form.get("precio")
+        articulos_por_caja = request.form.get("articulos_por_caja")
 
         try:
             cursor.close()
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE servicio
-                SET referencia=%s, descripcion=%s, precio=%s
+                SET referencia=%s, descripcion=%s, precio=%s, articulos_por_caja=%s
                 WHERE id_servicio=%s
-            """, (referencia, descripcion, precio, id_servicio))
+            """, (referencia, descripcion, precio, articulos_por_caja, id_servicio))
             conn.commit()
             flash("Servicio actualizado correctamente ✅", "success")
         except Exception as e:
@@ -403,6 +420,7 @@ def editar_servicio(id_servicio):
     conn.close()
 
     return render_template("editar_servicio.html", servicio=servicio)
+
 
 
 if __name__ == "__main__":
