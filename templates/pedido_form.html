@@ -25,7 +25,7 @@
     <!-- Fechas -->
     <div class="mb-3">
       <label class="form-label">Fecha Pedido</label>
-      <input type="date" class="form-control" name="fecha_pedido" required>
+      <input type="date" class="form-control" name="fecha_pedido" value="{{ fecha_hoy }}" required>
     </div>
     <div class="mb-3">
       <label class="form-label">Fecha Entrega</label>
@@ -67,7 +67,7 @@
     </div>
     <div class="col-md-2">
       <label class="form-label small">F. Recepción</label>
-      <input type="date" class="form-control form-control-sm" name="fecha_recepcion[]" required>
+      <input type="date" class="form-control form-control-sm" name="fecha_recepcion[]" value="{{ fecha_hoy }}" required>
     </div>
     
     <div class="col-md-1 text-center">

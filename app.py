@@ -231,7 +231,7 @@ def nuevo_pedido():
 
     cursor.close()
     conn.close()
-    return render_template("pedido_form.html", clientes=clientes, colores=colores, servicios=servicios)
+    return render_template("pedido_form.html", clientes=clientes, colores=colores, servicios=servicios, fecha_hoy = date.today().strftime("%Y-%m-%d"))
 
 
 
