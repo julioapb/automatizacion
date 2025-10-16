@@ -1,6 +1,13 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
+from reportlab.lib.pagesizes import mm
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+from datetime import datetime
+import os
 import mysql.connector
 import math
+import io
+
 
 app = Flask(__name__)
 app.config.from_pyfile("config.py")
@@ -292,6 +299,121 @@ def pedidos():
     return render_template("pedidos.html", pedidos=pedidos_dict.values())
 
 
+
+
+# ===== Generar etiqueta ======
+
+from flask import send_file
+from io import BytesIO
+from reportlab.lib.pagesizes import mm
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+import os
+import math
+from datetime import date
+
+
+@app.route("/etiqueta/<int:id_pedido>")
+def generar_etiqueta(id_pedido):
+    """Genera etiquetas en PDF para impresión térmica (80x50 mm)."""
+
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Consulta los servicios del pedido y su info asociada
+    cursor.execute("""
+        SELECT 
+            p.numero_pedido, c.nombre AS cliente, s.referencia,
+            s.articulos_por_caja, ps.cantidad, col.nombre_color AS color
+        FROM pedidos p
+        JOIN cliente c ON p.id_cliente = c.id_cliente
+        JOIN pedido_servicio ps ON p.id_pedido = ps.id_pedido
+        JOIN servicio s ON ps.id_servicio = s.id_servicio
+        LEFT JOIN color col ON ps.id_color = col.id_color
+        WHERE p.id_pedido = %s
+    """, (id_pedido,))
+    registros = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    if not registros:
+        flash("No se encontraron servicios para este pedido.", "warning")
+        return redirect(url_for("pedidos"))
+
+    # Crear PDF en memoria
+    buffer = BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=(80 * mm, 50 * mm))
+
+    for r in registros:
+        ref = r["referencia"]
+        color = r["color"] or "-"
+        cantidad = r["cantidad"]
+        num_pedido = r["numero_pedido"]
+        por_caja = r["articulos_por_caja"] or 1
+        fecha = date.today().strftime("%Y-%m-%d")
+
+        num_cajas = math.ceil(cantidad / por_caja)
+        resto = cantidad % por_caja
+
+        for i in range(num_cajas):
+            # Determinar cantidad en la caja actual
+            if i == num_cajas - 1 and resto != 0:
+                cantidad_caja = resto
+            else:
+                cantidad_caja = por_caja
+
+            # === CABECERA (Referencia) ===
+            # Ajustar tamaño según longitud del texto
+            if len(ref) > 12:
+                pdf.setFont("Helvetica-Bold", 10)
+            else:
+                pdf.setFont("Helvetica-Bold", 12)
+
+            # Dibujar centrado y un poco más abajo para no tocar la línea
+            pdf.drawCentredString(40 * mm, 44 * mm, ref)
+
+            # Línea superior un poco más arriba para mejor equilibrio
+            #pdf.line(3 * mm, 46 * mm, 77 * mm, 46 * mm)
+
+
+            # === IMAGEN A LA IZQUIERDA ===
+            ruta_imagen = f"static/img/servicios/{ref}.png"
+            img_x = 5 * mm
+            img_y = 10 * mm
+            img_w = 38 * mm
+            img_h = 30 * mm
+
+            if os.path.exists(ruta_imagen):
+                img = ImageReader(ruta_imagen)
+                pdf.drawImage(img, img_x, img_y, width=img_w, height=img_h, preserveAspectRatio=True)
+            else:
+                pdf.setFont("Helvetica-Oblique", 8)
+                pdf.drawCentredString(img_x + 18 * mm, img_y + 15 * mm, "(Sin imagen)")
+
+            # === DATOS A LA DERECHA ===
+            cuadro_x = 45 * mm
+            cuadro_y = 10 * mm
+            cuadro_w = 30 * mm
+            cuadro_h = 30 * mm
+            pdf.rect(cuadro_x, cuadro_y, cuadro_w, cuadro_h)
+
+            pdf.setFont("Helvetica", 8)
+            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 8, f"COLOR: {color}")
+            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 16, f"CANTIDAD: {cantidad_caja}")
+            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 24, f"ORD: {num_pedido}")
+            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 32, f"FECHA: {fecha}")
+
+            # === MARCO EXTERIOR ===
+            pdf.rect(2 * mm, 2 * mm, 76 * mm, 46 * mm)
+            pdf.showPage()
+
+    pdf.save()
+    buffer.seek(0)
+
+    return send_file(buffer, as_attachment=False, download_name=f"etiquetas_pedido_{id_pedido}.pdf", mimetype="application/pdf")
 
 
 

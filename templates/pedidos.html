@@ -46,6 +46,12 @@
           {% endfor %}
         </tbody>
       </table>
+      <div class="text-end mt-3">
+        <a href="{{ url_for('generar_etiqueta', id_pedido=p.id_pedido) }}" 
+            class="btn btn-primary btn-sm" target="_blank">
+            🖨️ Generar Etiquetas
+        </a>
+      </div>
 
     </div>
   </div>
