@@ -3,6 +3,9 @@ from reportlab.lib.pagesizes import mm
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from datetime import datetime
+from io import BytesIO
+from reportlab.lib.colors import HexColor
+from datetime import date
 import os
 import mysql.connector
 import math
@@ -303,16 +306,6 @@ def pedidos():
 
 # ===== Generar etiqueta ======
 
-from flask import send_file
-from io import BytesIO
-from reportlab.lib.pagesizes import mm
-from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
-import os
-import math
-from datetime import date
-
-
 @app.route("/etiqueta/<int:id_pedido>")
 def generar_etiqueta(id_pedido):
     """Genera etiquetas en PDF para impresión térmica (80x50 mm)."""
@@ -323,11 +316,15 @@ def generar_etiqueta(id_pedido):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Consulta los servicios del pedido y su info asociada
     cursor.execute("""
         SELECT 
-            p.numero_pedido, c.nombre AS cliente, s.referencia,
-            s.articulos_por_caja, ps.cantidad, col.nombre_color AS color
+            p.numero_pedido,
+            c.nombre AS cliente,
+            s.referencia,
+            s.articulos_por_caja,
+            ps.cantidad,
+            col.nombre_color AS color,
+            col.codigo_html AS codigo_html
         FROM pedidos p
         JOIN cliente c ON p.id_cliente = c.id_cliente
         JOIN pedido_servicio ps ON p.id_pedido = ps.id_pedido
@@ -343,13 +340,13 @@ def generar_etiqueta(id_pedido):
         flash("No se encontraron servicios para este pedido.", "warning")
         return redirect(url_for("pedidos"))
 
-    # Crear PDF en memoria
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=(80 * mm, 50 * mm))
 
     for r in registros:
         ref = r["referencia"]
         color = r["color"] or "-"
+        color_html = r["codigo_html"] or "#FFFFFF"
         cantidad = r["cantidad"]
         num_pedido = r["numero_pedido"]
         por_caja = r["articulos_por_caja"] or 1
@@ -359,31 +356,20 @@ def generar_etiqueta(id_pedido):
         resto = cantidad % por_caja
 
         for i in range(num_cajas):
-            # Determinar cantidad en la caja actual
-            if i == num_cajas - 1 and resto != 0:
-                cantidad_caja = resto
-            else:
-                cantidad_caja = por_caja
+            cantidad_caja = resto if (i == num_cajas - 1 and resto != 0) else por_caja
 
-            # === CABECERA (Referencia) ===
-            # Ajustar tamaño según longitud del texto
+            # === CABECERA ===
             if len(ref) > 12:
                 pdf.setFont("Helvetica-Bold", 10)
             else:
                 pdf.setFont("Helvetica-Bold", 12)
-
-            # Dibujar centrado y un poco más abajo para no tocar la línea
             pdf.drawCentredString(40 * mm, 44 * mm, ref)
 
-            # Línea superior un poco más arriba para mejor equilibrio
-            #pdf.line(3 * mm, 46 * mm, 77 * mm, 46 * mm)
-
-
-            # === IMAGEN A LA IZQUIERDA ===
+            # === IMAGEN IZQUIERDA (ligeramente más pequeña) ===
             ruta_imagen = f"static/img/servicios/{ref}.png"
             img_x = 5 * mm
             img_y = 10 * mm
-            img_w = 38 * mm
+            img_w = 30 * mm   # antes 38 mm → reducimos
             img_h = 30 * mm
 
             if os.path.exists(ruta_imagen):
@@ -391,20 +377,37 @@ def generar_etiqueta(id_pedido):
                 pdf.drawImage(img, img_x, img_y, width=img_w, height=img_h, preserveAspectRatio=True)
             else:
                 pdf.setFont("Helvetica-Oblique", 8)
-                pdf.drawCentredString(img_x + 18 * mm, img_y + 15 * mm, "(Sin imagen)")
+                pdf.drawCentredString(img_x + 15 * mm, img_y + 15 * mm, "(Sin imagen)")
 
-            # === DATOS A LA DERECHA ===
-            cuadro_x = 45 * mm
+            # === CUADRO DERECHA (más ancho) ===
+            cuadro_x = 37 * mm
             cuadro_y = 10 * mm
-            cuadro_w = 30 * mm
+            cuadro_w = 40 * mm
             cuadro_h = 30 * mm
             pdf.rect(cuadro_x, cuadro_y, cuadro_w, cuadro_h)
 
+            
             pdf.setFont("Helvetica", 8)
-            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 8, f"COLOR: {color}")
-            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 16, f"CANTIDAD: {cantidad_caja}")
-            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 24, f"ORD: {num_pedido}")
-            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 32, f"FECHA: {fecha}")
+
+            # === INFORMACIÓN PRINCIPAL ARRIBA ===
+            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 10, f"CANTIDAD: {cantidad_caja}")
+            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 18, f"ORD: {num_pedido}")
+            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 26, f"FECHA: {fecha}")
+
+
+
+            # === TEXTO DEL COLOR (AL FINAL) ===
+            color_texto = color[:26] + "…" if len(color) > 26 else color
+            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 38, f"COLOR: {color_texto}")
+
+            # === CÍRCULO DEL COLOR (más grande y más abajo) ===
+            try:
+                pdf.setFillColor(HexColor(color_html))
+                # centrado debajo del texto COLOR
+                pdf.circle(cuadro_x + 10, cuadro_y + cuadro_h - 48, 7, fill=1, stroke=1)
+                pdf.setFillColorRGB(0, 0, 0)
+            except Exception as e:
+                print("Error color:", e)
 
             # === MARCO EXTERIOR ===
             pdf.rect(2 * mm, 2 * mm, 76 * mm, 46 * mm)
@@ -413,7 +416,13 @@ def generar_etiqueta(id_pedido):
     pdf.save()
     buffer.seek(0)
 
-    return send_file(buffer, as_attachment=False, download_name=f"etiquetas_pedido_{id_pedido}.pdf", mimetype="application/pdf")
+    return send_file(
+        buffer,
+        as_attachment=False,
+        download_name=f"etiquetas_pedido_{id_pedido}.pdf",
+        mimetype="application/pdf"
+    )
+
 
 
 
@@ -424,15 +433,16 @@ def nuevo_color():
         return redirect(url_for("login"))
 
     if request.method == "POST":
-        codigo = request.form.get("codigo_color")
-        nombre = request.form.get("nombre_color")
+        codigo_cliente = request.form.get("codigo_color")   # código del cliente
+        codigo_html = request.form.get("codigo_html")       # código HTML
+        nombre = request.form.get("nombre_color")           # nombre del color
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO color (codigo_color, nombre_color) VALUES (%s, %s)",
-            (codigo, nombre)
-        )
+        cursor.execute("""
+            INSERT INTO color (codigo_color, codigo_html, nombre_color)
+            VALUES (%s, %s, %s)
+        """, (codigo_cliente, codigo_html, nombre))
         conn.commit()
         cursor.close()
         conn.close()
@@ -441,6 +451,8 @@ def nuevo_color():
         return redirect(url_for("colores"))
 
     return render_template("color_form.html")
+
+
 
 
 @app.route("/colores")
