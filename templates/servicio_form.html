@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Nueva Pieza{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Registrar Pieza</h2>
+  <form method="POST">
+    <div class="mb-3">
+      <label class="form-label">Referencia</label>
+      <input type="text" class="form-control" name="referencia" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Descripción</label>
+      <input type="text" class="form-control" name="descripcion" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Precio</label>
+      <input type="number" step="0.01" class="form-control" name="precio" required>
+    </div>
+    <div class="mb-3">
+    <label for="articulos_por_caja" class="form-label">Artículos por Caja</label>
+      <input type="number" min="0" class="form-control" id="articulos_por_caja" name="articulos_por_caja" required>
+    </div>
+    <button type="submit" class="btn btn-success">Guardar</button>
+  </form>
+</div>
+{% endblock %}

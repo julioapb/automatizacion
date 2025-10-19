@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Editar Cliente{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Editar Cliente</h2>
+  <form method="POST">
+    <div class="mb-3">
+      <label class="form-label">Nombre</label>
+      <input type="text" class="form-control" name="nombre" value="{{ cliente.nombre }}" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">N° Documento</label>
+      <input type="text" class="form-control" name="no_documento" value="{{ cliente.no_documento }}" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Dirección</label>
+      <input type="text" class="form-control" name="direccion" value="{{ cliente.direccion }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Ciudad</label>
+      <input type="text" class="form-control" name="ciudad" value="{{ cliente.ciudad }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Código Postal</label>
+      <input type="text" class="form-control" name="cp" value="{{ cliente.cp }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Teléfono</label>
+      <input type="text" class="form-control" name="telefono" value="{{ cliente.telefono }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Correo</label>
+      <input type="email" class="form-control" name="correo" value="{{ cliente.correo }}">
+    </div>
+    <button type="submit" class="btn btn-primary">Actualizar</button>
+    <a href="{{ url_for('clientes') }}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

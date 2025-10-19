@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Lista de Clientes{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Clientes Registrados</h2>
+  <table class="table table-hover align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>N° Documento</th>
+        <th>Teléfono</th>
+        <th>Correo</th>
+        <th class="text-center">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in clientes %}
+      <tr>
+        <td>{{ c.id_cliente }}</td>
+        <td>{{ c.nombre }}</td>
+        <td>{{ c.no_documento }}</td>
+        <td>{{ c.telefono }}</td>
+        <td>{{ c.correo }}</td>
+        <td class="text-center">
+          <!-- Editar -->
+          <a href="{{ url_for('editar_cliente', id_cliente=c.id_cliente) }}" 
+             class="btn btn-sm btn-outline-warning me-1" 
+             title="Editar">
+            <i class="fas fa-edit"></i>
+          </a>
+          <!-- Eliminar -->
+          <a href="{{ url_for('eliminar_cliente', id_cliente=c.id_cliente) }}" 
+             class="btn btn-sm btn-outline-danger" 
+             title="Eliminar"
+             onclick="return confirm('¿Seguro que quieres eliminar este cliente?');">
+            <i class="fas fa-trash"></i>
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

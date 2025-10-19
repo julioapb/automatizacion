@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Servicios{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Listado de piezas</h2>
+
+  <a href="{{ url_for('nuevo_servicio') }}" class="btn btn-success mb-3">
+    ➕ Nueva Pieza
+  </a>
+
+  <table class="table table-bordered table-striped align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th>ID</th>
+        <th>Referencia</th>
+        <th>Descripción</th>
+        <th>Artículos por Caja</th>
+        <th>Precio (€)</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in servicios %}
+      <tr>
+        <td>{{ s.id_servicio }}</td>
+        <td>{{ s.referencia }}</td>
+        <td>{{ s.descripcion }}</td>
+        <td>{{ s.articulos_por_caja }}</td>
+        <td>{{ "%.2f"|format(s.precio) }}</td>
+        <td>
+          <a href="{{ url_for('editar_servicio', id_servicio=s.id_servicio) }}" class="btn btn-sm btn-warning">
+            ✏️ Editar
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</div>
+{% endblock %}
