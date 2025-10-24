@@ -1,7 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
-from reportlab.lib.pagesizes import mm
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, jsonify
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
+from reportlab.lib.units import mm
 from datetime import datetime
 from io import BytesIO
 from reportlab.lib.colors import HexColor
@@ -247,14 +247,24 @@ def pedidos():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Consulta con cálculo de cajas necesarias
+    # Consulta con el ID real del pedido_servicio
     cursor.execute("""
         SELECT 
-            p.id_pedido, p.numero_pedido, c.nombre AS cliente,
-            p.fecha_pedido, p.fecha_entrega, p.usuario,
-            s.descripcion AS servicio, s.articulos_por_caja,
+            p.id_pedido,
+            p.numero_pedido,
+            c.nombre AS cliente,
+            p.fecha_pedido,
+            p.fecha_entrega,
+            p.usuario,
+            ps.id_pedido_servicio,              -- 👈 ID real del detalle
+            s.descripcion AS servicio,
+            s.articulos_por_caja,
             col.nombre_color AS color,
-            ps.cantidad, ps.precio_unitario, ps.descuento, ps.neto, ps.fecha_recepcion,
+            ps.cantidad,
+            ps.precio_unitario,
+            ps.descuento,
+            ps.neto,
+            ps.fecha_recepcion,
             CASE 
                 WHEN s.articulos_por_caja > 0 THEN CEIL(ps.cantidad / s.articulos_por_caja)
                 ELSE 0
@@ -271,7 +281,7 @@ def pedidos():
     cursor.close()
     conn.close()
 
-    # Agrupar pedidos por ID
+    # Agrupar pedidos
     pedidos_dict = {}
     for row in rows:
         id_pedido = row["id_pedido"]
@@ -288,6 +298,7 @@ def pedidos():
 
         if row["servicio"]:
             pedidos_dict[id_pedido]["servicios"].append({
+                "id_pedido_servicio": row["id_pedido_servicio"],  # 👈 necesario para AJAX
                 "servicio": row["servicio"],
                 "color": row["color"],
                 "cantidad": row["cantidad"],
@@ -554,6 +565,59 @@ def editar_servicio(id_servicio):
     conn.close()
 
     return render_template("editar_servicio.html", servicio=servicio)
+
+# ========= ACTUALIZAR SERVICIO (AJAX desde pedidos.html) =========
+@app.route("/actualizar_servicio_ajax", methods=["POST"])
+def actualizar_servicio_ajax():
+    data = request.get_json()
+    print("📩 Datos recibidos AJAX:", data)
+
+    id_servicio = data.get("id_servicio")
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verificar nombre de la columna (ajústalo si es distinto)
+        sql = """
+            UPDATE pedido_servicio
+            SET cantidad=%s,
+                precio_unitario=%s,
+                descuento=%s,
+                neto=%s,
+                fecha_recepcion=%s
+            WHERE id_pedido_servicio=%s
+        """
+
+        valores = (
+            data.get("cantidad"),
+            data.get("precio_unitario"),
+            data.get("descuento"),
+            data.get("neto"),
+            data.get("fecha_recepcion"),
+            id_servicio
+        )
+
+        print("📦 Ejecutando SQL:", sql)
+        print("🔢 Valores:", valores)
+
+        cursor.execute(sql, valores)
+        conn.commit()
+
+        filas_afectadas = cursor.rowcount
+        print(f"✅ Filas actualizadas: {filas_afectadas}")
+
+        cursor.close()
+        conn.close()
+
+        if filas_afectadas == 0:
+            return jsonify(success=False, message="No se actualizó ninguna fila (ID incorrecto)")
+
+        return jsonify(success=True)
+
+    except Exception as e:
+        print("❌ Error al actualizar servicio AJAX:", e)
+        return jsonify(success=False, message=str(e))
 
 
 

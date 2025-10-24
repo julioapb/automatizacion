@@ -5,56 +5,335 @@
 <div class="container">
   <h2 class="mb-4">Listado de Pedidos</h2>
 
-  {% for p in pedidos %}
-  <div class="card mb-4 shadow-sm">
-    <div class="card-header bg-dark text-white">
-      <strong>Pedido {{ p.numero_pedido }}</strong> - Cliente: {{ p.cliente }}
+  <!-- 🔍 FILTROS -->
+  <form id="filtros" class="row g-3 mb-4 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label fw-bold">Pedido</label>
+      <input type="text" class="form-control" id="filtroPedido" placeholder="Buscar pedido...">
     </div>
-    <div class="card-body">
-      <p><strong>Fecha Pedido:</strong> {{ p.fecha_pedido }}</p>
-      <p><strong>Fecha Entrega:</strong> {{ p.fecha_entrega }}</p>
-      <p><strong>Usuario:</strong> {{ p.usuario }}</p>
+    <div class="col-md-3">
+      <label class="form-label fw-bold">Cliente</label>
+      <input type="text" class="form-control" id="filtroCliente" placeholder="Buscar cliente...">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label fw-bold">Fecha de Recepción</label>
+      <input type="date" class="form-control" id="filtroFecha">
+    </div>
+    <div class="col-md-3 text-end">
+      <button type="button" class="btn btn-secondary mt-2" id="btnLimpiar">
+        <i class="bi bi-x-circle"></i> Limpiar filtros
+      </button>
+    </div>
+  </form>
 
-      <h5 class="mt-3">Servicios Asociados</h5>
-      <table class="table table-bordered table-striped align-middle text-center">
-        <thead class="table-dark">
-          <tr>
-            <th>Servicio</th>
-            <th>Color</th>
-            <th>Unidades</th>
-            <th>Artículos/Caja</th>
-            <th>Cajas Necesarias</th>
-            <th>Costo Unitario</th>
-            <th>Descuento</th>
-            <th>Neto</th>
-            <th>Fecha Recepción</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for s in p.servicios %}
-          <tr>
-            <td>{{ s.servicio }}</td>
-            <td>{{ s.color }}</td>
-            <td>{{ s.cantidad }}</td>
-            <td>{{ s.articulos_por_caja }}</td>
-            <td><strong>{{ s.cajas_necesarias }}</strong></td>
-            <td>{{ s.precio_unitario }}</td>
-            <td>{{ s.descuento }}</td>
-            <td>{{ s.neto }}</td>
-            <td>{{ s.fecha_recepcion }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <div class="text-end mt-3">
-        <a href="{{ url_for('generar_etiqueta', id_pedido=p.id_pedido) }}" 
-            class="btn btn-primary btn-sm" target="_blank">
-            🖨️ Generar Etiquetas
-        </a>
+  <!-- 🧾 TABLA -->
+  <div class="table-responsive">
+  <table class="table table-bordered table-striped align-middle text-center" id="tablaPedidos">
+    <thead class="table-dark">
+      <tr>
+        <th>Pedido</th>
+        <th>Cliente</th>
+        <th>Servicio</th>
+        <th>Color</th>
+        <th>Unidades</th>
+        <th>Artículos/Caja</th>
+        <th>Cajas Necesarias</th>
+        <th>Costo Unitario</th>
+        <th>Descuento</th>
+        <th>Neto</th>
+        <th>Fecha Recepción</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pedidos %}
+        {% for s in p.servicios %}
+        <tr data-id="{{ s.id_pedido_servicio }}">
+          <td>{{ p.numero_pedido }}</td>
+          <td>{{ p.cliente }}</td>
+          <td>{{ s.servicio }}</td>
+          <td>{{ s.color }}</td>
+          <td>{{ s.cantidad }}</td>
+          <td>{{ s.articulos_por_caja }}</td>
+          <td><strong>{{ s.cajas_necesarias }}</strong></td>
+          <td>{{ s.precio_unitario }}</td>
+          <td>{{ s.descuento }}</td>
+          <td>{{ s.neto }}</td>
+          <td>{{ s.fecha_recepcion }}</td>
+          <td>
+            <button class="btn btn-sm btn-warning btnEditar me-1" data-bs-toggle="tooltip" title="Editar">
+              <i class="bi bi-pencil-square"></i>
+            </button>
+            <a href="{{ url_for('generar_etiqueta', id_pedido=p.id_pedido) }}" 
+               class="btn btn-sm btn-primary" target="_blank" data-bs-toggle="tooltip" title="Generar Etiqueta">
+              <i class="bi bi-printer"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+  <!-- 📄 PAGINACIÓN -->
+  <nav>
+    <ul class="pagination justify-content-center mt-4" id="paginacion"></ul>
+  </nav>
+</div>
+
+<!-- 🧾 MODAL EDITAR SERVICIO -->
+<div class="modal fade" id="modalEditar" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title" id="modalEditarLabel">Editar Servicio</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
+      <div class="modal-body">
+        <form id="formEditarServicio">
+          <input type="hidden" id="edit_id_servicio">
 
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Servicio</label>
+              <input type="text" id="edit_servicio" class="form-control" readonly>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Color</label>
+              <input type="text" id="edit_color" class="form-control" readonly>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Cantidad</label>
+              <input type="number" id="edit_cantidad" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Artículos/Caja</label>
+              <input type="number" id="edit_articulos" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Cajas Necesarias</label>
+              <input type="number" id="edit_cajas" class="form-control" readonly>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Precio Unitario (€)</label>
+              <input type="number" step="0.01" id="edit_precio" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Descuento (€)</label>
+              <input type="number" step="0.01" id="edit_descuento" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Neto (€)</label>
+              <input type="number" step="0.01" id="edit_neto" class="form-control" readonly>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fecha Recepción</label>
+              <input type="date" id="edit_fecha" class="form-control">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" id="btnGuardarCambios">
+          <i class="bi bi-save"></i> Guardar Cambios
+        </button>
+      </div>
     </div>
   </div>
-  {% endfor %}
 </div>
+
+<!-- 🔔 TOAST SUPERIOR CENTRADO -->
+<div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1056;">
+  <div id="toastMsg" class="toast align-items-center text-white bg-success border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body fw-semibold" id="toastBody">Cambios guardados correctamente ✅</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ⚙️ SCRIPT -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const tabla = document.getElementById("tablaPedidos");
+  const filas = Array.from(tabla.querySelectorAll("tbody tr"));
+  const paginacion = document.getElementById("paginacion");
+  const filasPorPagina = 10;
+  let paginaActual = 1;
+
+  const inputPedido = document.getElementById("filtroPedido");
+  const inputCliente = document.getElementById("filtroCliente");
+  const inputFecha = document.getElementById("filtroFecha");
+  const btnLimpiar = document.getElementById("btnLimpiar");
+
+  function obtenerFilasVisibles() {
+    const pedido = inputPedido.value.toLowerCase();
+    const cliente = inputCliente.value.toLowerCase();
+    const fecha = inputFecha.value;
+    return filas.filter(fila => {
+      const pedidoFila = fila.children[0].textContent.toLowerCase();
+      const clienteFila = fila.children[1].textContent.toLowerCase();
+      const fechaFila = fila.children[10].textContent.trim();
+      return (
+        (pedido === "" || pedidoFila.includes(pedido)) &&
+        (cliente === "" || clienteFila.includes(cliente)) &&
+        (fecha === "" || fechaFila === fecha)
+      );
+    });
+  }
+
+  function mostrarPagina() {
+    const visibles = obtenerFilasVisibles();
+    const totalPaginas = Math.ceil(visibles.length / filasPorPagina) || 1;
+    filas.forEach(f => (f.style.display = "none"));
+    visibles.forEach((fila, i) => {
+      if (i >= (paginaActual - 1) * filasPorPagina && i < paginaActual * filasPorPagina) {
+        fila.style.display = "";
+      }
+    });
+    actualizarPaginacion(totalPaginas);
+  }
+
+  function actualizarPaginacion(totalPaginas) {
+    paginacion.innerHTML = "";
+    const crearBoton = (texto, habilitado, accion) => {
+      const li = document.createElement("li");
+      li.className = "page-item" + (habilitado ? "" : " disabled");
+      li.innerHTML = `<a class="page-link" href="#">${texto}</a>`;
+      if (habilitado) li.addEventListener("click", accion);
+      paginacion.appendChild(li);
+    };
+
+    crearBoton("Anterior", paginaActual > 1, () => { paginaActual--; mostrarPagina(); });
+    for (let i = 1; i <= totalPaginas; i++) {
+      const li = document.createElement("li");
+      li.className = "page-item" + (i === paginaActual ? " active" : "");
+      li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+      li.addEventListener("click", () => { paginaActual = i; mostrarPagina(); });
+      paginacion.appendChild(li);
+    }
+    crearBoton("Siguiente", paginaActual < totalPaginas, () => { paginaActual++; mostrarPagina(); });
+  }
+
+  [inputPedido, inputCliente, inputFecha].forEach(input =>
+    input.addEventListener("input", () => { paginaActual = 1; mostrarPagina(); })
+  );
+  btnLimpiar.addEventListener("click", () => {
+    inputPedido.value = "";
+    inputCliente.value = "";
+    inputFecha.value = "";
+    paginaActual = 1;
+    mostrarPagina();
+  });
+
+  window.addEventListener("load", () => { mostrarPagina(); });
+
+  
+  // === MODAL Y TOAST ===
+const modalEditar = new bootstrap.Modal(document.getElementById('modalEditar'));
+const toastEl = document.getElementById('toastMsg');
+const toastBody = document.getElementById('toastBody');
+const toast = new bootstrap.Toast(toastEl, { delay: 2500 });
+
+document.querySelectorAll('.btnEditar').forEach(btn => {
+  btn.addEventListener('click', e => {
+    const fila = e.target.closest('tr');
+    const celdas = fila.querySelectorAll('td');
+
+    document.getElementById('edit_id_servicio').value = fila.dataset.id;
+    document.getElementById('edit_servicio').value = celdas[2].innerText.trim();
+    document.getElementById('edit_color').value = celdas[3].innerText.trim();
+    document.getElementById('edit_cantidad').value = celdas[4].innerText.trim();
+    document.getElementById('edit_articulos').value = celdas[5].innerText.trim();
+    document.getElementById('edit_cajas').value = celdas[6].innerText.trim();
+    document.getElementById('edit_precio').value = celdas[7].innerText.trim();
+    document.getElementById('edit_descuento').value = celdas[8].innerText.trim();
+    document.getElementById('edit_neto').value = celdas[9].innerText.trim();
+    document.getElementById('edit_fecha').value = celdas[10].innerText.trim();
+
+    modalEditar.show();
+  });
+});
+
+// === CÁLCULO AUTOMÁTICO DE CAJAS Y NETO ===
+['edit_cantidad', 'edit_articulos', 'edit_precio', 'edit_descuento'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    const cantidad = parseFloat(document.getElementById('edit_cantidad').value) || 0;
+    const articulos = parseFloat(document.getElementById('edit_articulos').value) || 0;
+    const precio = parseFloat(document.getElementById('edit_precio').value) || 0;
+    const descuento = parseFloat(document.getElementById('edit_descuento').value) || 0;
+    const cajas = articulos > 0 ? Math.ceil(cantidad / articulos) : 0;
+    const neto = (cantidad * precio - descuento).toFixed(2);
+    document.getElementById('edit_cajas').value = cajas;
+    document.getElementById('edit_neto').value = neto;
+  });
+});
+
+// === GUARDAR CAMBIOS AJAX ===
+document.getElementById('btnGuardarCambios').addEventListener('click', () => {
+  const data = {
+    id_servicio: document.getElementById('edit_id_servicio').value,
+    servicio: document.getElementById('edit_servicio').value,
+    color: document.getElementById('edit_color').value,
+    cantidad: document.getElementById('edit_cantidad').value,
+    articulos_por_caja: document.getElementById('edit_articulos').value,
+    cajas_necesarias: document.getElementById('edit_cajas').value,
+    precio_unitario: document.getElementById('edit_precio').value,
+    descuento: document.getElementById('edit_descuento').value,
+    neto: document.getElementById('edit_neto').value,
+    fecha_recepcion: document.getElementById('edit_fecha').value
+  };
+
+  fetch('/actualizar_servicio_ajax', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  .then(res => res.json())
+  .then(resp => {
+    if (resp.success) {
+      toastBody.innerText = `Servicio "${data.servicio}" actualizado correctamente ✅`;
+      toastEl.classList.remove('bg-danger');
+      toastEl.classList.add('bg-success');
+      toast.show();
+      modalEditar.hide();
+
+      const fila = document.querySelector(`tr[data-id="${data.id_servicio}"]`);
+      if (fila) {
+        fila.children[4].innerText = data.cantidad;
+        fila.children[5].innerText = data.articulos_por_caja;
+        fila.children[6].innerText = data.cajas_necesarias;
+        fila.children[7].innerText = data.precio_unitario;
+        fila.children[8].innerText = data.descuento;
+        fila.children[9].innerText = data.neto;
+        fila.children[10].innerText = data.fecha_recepcion;
+      }
+
+      // Limpia el formulario del modal
+      document.getElementById('formEditarServicio').reset();
+
+    } else {
+      throw new Error(resp.message || "Error al guardar");
+    }
+  })
+  .catch(() => {
+    toastBody.innerText = "❌ Error al guardar los cambios";
+    toastEl.classList.remove('bg-success');
+    toastEl.classList.add('bg-danger');
+    toast.show();
+  });
+});
+
+// Reinicia animación del toast cada vez que aparece
+toastEl.addEventListener('hidden.bs.toast', () => {
+  toastEl.classList.remove('show', 'showing');
+});
+
+// === Habilitar tooltips ===
+new bootstrap.Tooltip(document.body, { selector: '[data-bs-toggle="tooltip"]' });
+
+});
+</script>
 {% endblock %}

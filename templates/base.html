@@ -6,10 +6,12 @@
 
   <!-- Bootstrap -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
   <!-- Font Awesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
+  
   <style>
     body {
       display: flex;
@@ -47,7 +49,25 @@
       flex-grow: 1;
       padding: 2rem;
     }
+
+   
+    /* Animación de entrada suave del toast */
+    .toast.showing, .toast.show {
+    animation: slideFade 0.5s ease forwards;
+    }
+
+    @keyframes slideFade {
+    0% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+    }
+    100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    }
+    }
   </style>
+
 </head>
 
 <body>
@@ -75,7 +95,13 @@
       {% endif %}
     {% endwith %}
     
-    {% block content %}{% endblock %}
   </div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+{% block content %}{% endblock %}
 </body>
 </html>
