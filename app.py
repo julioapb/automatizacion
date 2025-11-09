@@ -315,8 +315,28 @@ def pedidos():
 
 
 
-# ===== Generar etiqueta ======
+from flask import send_file
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import mm
+from reportlab.lib.colors import HexColor
+from reportlab.lib.utils import ImageReader
+from io import BytesIO
+from datetime import date
+import math
+import os
 
+from flask import send_file
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import mm
+from reportlab.lib.colors import HexColor
+from reportlab.lib.utils import ImageReader
+from io import BytesIO
+from datetime import date
+import math
+import os
+
+
+# ===== Generar etiqueta ======
 @app.route("/etiqueta/<int:id_pedido>")
 def generar_etiqueta(id_pedido):
     """Genera etiquetas en PDF para impresión térmica (80x50 mm)."""
@@ -369,53 +389,53 @@ def generar_etiqueta(id_pedido):
         for i in range(num_cajas):
             cantidad_caja = resto if (i == num_cajas - 1 and resto != 0) else por_caja
 
-            # === CABECERA ===
-            if len(ref) > 12:
-                pdf.setFont("Helvetica-Bold", 10)
-            else:
-                pdf.setFont("Helvetica-Bold", 12)
-            pdf.drawCentredString(40 * mm, 44 * mm, ref)
+            # === CABECERA (más abajo para no tocar la línea) ===
+            pdf.setFont("Helvetica-Bold", 12)
+            pdf.drawCentredString(40 * mm, 42 * mm, ref)
 
-            # === IMAGEN IZQUIERDA (ligeramente más pequeña) ===
+            # === LOGO (esquina superior izquierda) ===
+            ruta_logo = "static/img/logo.png"
+            if os.path.exists(ruta_logo):
+                logo = ImageReader(ruta_logo)
+                pdf.drawImage(logo, 3 * mm, 37 * mm, width=12 * mm, height=8 * mm, mask="auto")
+
+            # === IMAGEN IZQUIERDA ===
             ruta_imagen = f"static/img/servicios/{ref}.png"
             img_x = 5 * mm
             img_y = 10 * mm
-            img_w = 30 * mm   # antes 38 mm → reducimos
-            img_h = 30 * mm
+            img_w = 30 * mm
+            img_h = 28 * mm
 
             if os.path.exists(ruta_imagen):
                 img = ImageReader(ruta_imagen)
                 pdf.drawImage(img, img_x, img_y, width=img_w, height=img_h, preserveAspectRatio=True)
             else:
                 pdf.setFont("Helvetica-Oblique", 8)
-                pdf.drawCentredString(img_x + 15 * mm, img_y + 15 * mm, "(Sin imagen)")
+                pdf.drawCentredString(img_x + 15 * mm, img_y + 14 * mm, "(Sin imagen)")
 
-            # === CUADRO DERECHA (más ancho) ===
+            # === CUADRO DE INFORMACIÓN DERECHA ===
             cuadro_x = 37 * mm
             cuadro_y = 10 * mm
             cuadro_w = 40 * mm
             cuadro_h = 30 * mm
             pdf.rect(cuadro_x, cuadro_y, cuadro_w, cuadro_h)
 
-            
-            pdf.setFont("Helvetica", 8)
+            pdf.setFont("Helvetica", 9)
+            line_height = 9
+            offset_y = cuadro_y + cuadro_h - 10
 
-            # === INFORMACIÓN PRINCIPAL ARRIBA ===
-            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 10, f"CANTIDAD: {cantidad_caja}")
-            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 18, f"ORD: {num_pedido}")
-            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 26, f"FECHA: {fecha}")
+            pdf.drawString(cuadro_x + 5, offset_y, f"CANTIDAD: {cantidad_caja}")
+            offset_y -= line_height + 2
+            pdf.drawString(cuadro_x + 5, offset_y, f"ORD: {num_pedido}")
+            offset_y -= line_height + 2
+            pdf.drawString(cuadro_x + 5, offset_y, f"FECHA: {fecha}")
+            offset_y -= line_height + 2
+            pdf.drawString(cuadro_x + 5, offset_y, f"COLOR: {color}")
 
-
-
-            # === TEXTO DEL COLOR (AL FINAL) ===
-            color_texto = color[:26] + "…" if len(color) > 26 else color
-            pdf.drawString(cuadro_x + 3, cuadro_y + cuadro_h - 38, f"COLOR: {color_texto}")
-
-            # === CÍRCULO DEL COLOR (más grande y más abajo) ===
+            # === CÍRCULO DEL COLOR (2 cm más abajo y más a la izquierda) ===
             try:
                 pdf.setFillColor(HexColor(color_html))
-                # centrado debajo del texto COLOR
-                pdf.circle(cuadro_x + 10, cuadro_y + cuadro_h - 48, 7, fill=1, stroke=1)
+                pdf.circle(cuadro_x + 10, offset_y - 20, 6, fill=1, stroke=1)
                 pdf.setFillColorRGB(0, 0, 0)
             except Exception as e:
                 print("Error color:", e)
@@ -433,6 +453,7 @@ def generar_etiqueta(id_pedido):
         download_name=f"etiquetas_pedido_{id_pedido}.pdf",
         mimetype="application/pdf"
     )
+
 
 
 
