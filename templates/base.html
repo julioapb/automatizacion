@@ -101,7 +101,17 @@
 
     <!-- OTROS -->
     <a href="{{ url_for('colores') }}"><i class="fa-solid fa-palette"></i> Colores</a>
-    <a href="{{ url_for('servicios') }}"><i class="fa-solid fa-gears"></i> Piezas</a>
+    <!-- PIEZAS / SERVICIOS -->
+    <a data-bs-toggle="collapse" href="#submenuPiezas" role="button" aria-expanded="false" aria-controls="submenuPiezas">
+      <i class="fa-solid fa-gears"></i> Piezas
+      <i class="fa-solid fa-chevron-right ms-auto rotate"></i>
+    </a>
+
+    <div class="collapse submenu" id="submenuPiezas">
+      <a href="{{ url_for('servicios') }}"><i class="fa-regular fa-folder-open"></i> Ver Piezas</a>
+      <a href="{{ url_for('nuevo_servicio') }}"><i class="fa-solid fa-plus"></i> Nueva Pieza</a>
+      <a href="{{ url_for('subir_imagen') }}"><i class="fa-solid fa-image"></i> Subir Imagen</a> <!-- ⭐ ESTA ES LA NUEVA -->
+    </div>
     <a href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión</a>
   </div>
 

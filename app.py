@@ -6,6 +6,7 @@ from datetime import datetime
 from io import BytesIO
 from reportlab.lib.colors import HexColor
 from datetime import date
+from werkzeug.utils import secure_filename
 import os
 import mysql.connector
 import math
@@ -14,6 +15,12 @@ import io
 
 app = Flask(__name__)
 app.config.from_pyfile("config.py")
+
+# Carpeta de subida y tipos permitidos
+UPLOAD_FOLDER = os.path.join('static', 'img', 'servicios')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # ===== Función de conexión =====
 def get_db_connection():
@@ -24,6 +31,10 @@ def get_db_connection():
         database=app.config["MYSQL_DB"],
         port=app.config["MYSQL_PORT"]
     )
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 # ========== LOGIN ==========
 @app.route("/", methods=["GET", "POST"])
@@ -639,6 +650,43 @@ def actualizar_servicio_ajax():
     except Exception as e:
         print("❌ Error al actualizar servicio AJAX:", e)
         return jsonify(success=False, message=str(e))
+
+#Subir imagenes
+@app.route("/subir_imagen", methods=["GET", "POST"])
+def subir_imagen():
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        if 'imagen' not in request.files:
+            flash("No se seleccionó ningún archivo", "warning")
+            return redirect(request.url)
+        
+        file = request.files['imagen']
+        referencia = request.form.get("referencia", "").strip()
+
+        if file.filename == '':
+            flash("Archivo no seleccionado", "danger")
+            return redirect(request.url)
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            extension = filename.rsplit('.', 1)[1].lower()
+
+            # Guardar con el nombre de referencia (ej: 52-0154-001.png)
+            if referencia:
+                filename = f"{referencia}.{extension}"
+
+            save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(save_path)
+
+            flash("Imagen subida correctamente ✅", "success")
+            return redirect(url_for("subir_imagen"))
+
+        flash("Formato de archivo no permitido ❌", "danger")
+        return redirect(request.url)
+
+    return render_template("subir_imagen.html")
 
 
 

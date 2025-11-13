@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Subir Imagen{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Subir Imagen de Servicio</h2>
+
+  <form method="POST" enctype="multipart/form-data" class="border p-4 rounded bg-light">
+    <div class="mb-3">
+      <label class="form-label">Referencia del servicio (nombre del archivo)</label>
+      <input type="text" name="referencia" class="form-control" required placeholder="Ej: 52-0154-001">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Seleccionar imagen</label>
+      <input type="file" name="imagen" accept=".png,.jpg,.jpeg,.gif" class="form-control" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary">📤 Subir Imagen</button>
+    <a href="{{ url_for('panel') }}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}
