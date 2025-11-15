@@ -1,27 +1,53 @@
 {% extends "base.html" %}
-{% block title %}Nueva Pieza{% endblock %}
+{% block title %}Nuevo Servicio{% endblock %}
 
 {% block content %}
-<div class="container">
-  <h2 class="mb-4">Registrar Pieza</h2>
-  <form method="POST">
+<div class="container col-md-6">
+  <h2 class="mb-4">Registrar Nuevo Servicio</h2>
+
+  <form method="POST" enctype="multipart/form-data">
+
     <div class="mb-3">
       <label class="form-label">Referencia</label>
       <input type="text" class="form-control" name="referencia" required>
     </div>
+
     <div class="mb-3">
       <label class="form-label">Descripción</label>
       <input type="text" class="form-control" name="descripcion" required>
     </div>
+
     <div class="mb-3">
       <label class="form-label">Precio</label>
-      <input type="number" step="0.01" class="form-control" name="precio">
+      <input type="number" step="0.01" class="form-control" name="precio" required>
     </div>
+
     <div class="mb-3">
-    <label for="articulos_por_caja" class="form-label">Artículos por Caja</label>
-      <input type="number" min="0" class="form-control" id="articulos_por_caja" name="articulos_por_caja">
+      <label class="form-label">Artículos por Caja</label>
+      <input type="number" class="form-control" name="articulos_por_caja" required>
     </div>
-    <button type="submit" class="btn btn-success">Guardar</button>
+
+    <!-- Subir imagen -->
+    <div class="mb-3">
+      <label class="form-label">Imagen del Servicio</label>
+      <input type="file" class="form-control" name="imagen" accept="image/*" onchange="previewImage(event)">
+    </div>
+
+    <!-- Vista previa -->
+    <div class="text-center mb-3">
+      <img id="preview" src="" alt="Vista previa" style="max-width:200px; display:none; border:1px solid #ccc; padding:5px;">
+    </div>
+
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{{ url_for('servicios') }}" class="btn btn-secondary">Cancelar</a>
   </form>
 </div>
+
+<script>
+function previewImage(event) {
+    let img = document.getElementById("preview");
+    img.src = URL.createObjectURL(event.target.files[0]);
+    img.style.display = "block";
+}
+</script>
 {% endblock %}

@@ -561,7 +561,16 @@ def nuevo_servicio():
         referencia = request.form.get("referencia")
         descripcion = request.form.get("descripcion")
         precio = request.form.get("precio")
-        articulos_por_caja = request.form.get("articulos_por_caja")  # 👈 nuevo campo
+        articulos_por_caja = request.form.get("articulos_por_caja")
+
+        # --- imagen enviada ---
+        imagen = request.files.get("imagen")
+
+        filename = None
+
+        if imagen and allowed_file(imagen.filename):
+            filename = secure_filename(f"{referencia}.png")  # SIEMPRE guardará como referencia.png
+            imagen.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -579,6 +588,7 @@ def nuevo_servicio():
 
         cursor.close()
         conn.close()
+
         return redirect(url_for("servicios"))
 
     return render_template("servicio_form.html")
