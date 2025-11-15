@@ -526,6 +526,31 @@ def servicios():
 
     return render_template("servicios.html", servicios=lista_servicios)
 
+
+@app.route("/color/eliminar/<int:id_color>")
+def eliminar_color(id_color):
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("DELETE FROM color WHERE id_color = %s", (id_color,))
+        conn.commit()
+
+        flash("Color eliminado correctamente 🗑️", "success")
+
+    except mysql.connector.Error as err:
+        flash(f"No se puede eliminar el color porque está en uso en pedidos. ({err})", "danger")
+
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for("colores"))
+
+
 # ========= CREAR SERVICIO ========
 @app.route("/servicio/nuevo", methods=["GET", "POST"])
 def nuevo_servicio():
