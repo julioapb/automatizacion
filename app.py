@@ -633,6 +633,26 @@ def editar_servicio(id_servicio):
 
     return render_template("editar_servicio.html", servicio=servicio)
 
+@app.route("/servicio/eliminar/<int:id_servicio>")
+def eliminar_servicio(id_servicio):
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("DELETE FROM servicio WHERE id_servicio=%s", (id_servicio,))
+        conn.commit()
+        flash("Servicio eliminado correctamente 🗑️", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"No se pudo eliminar: {str(e)}", "danger")
+
+    cursor.close()
+    conn.close()
+    return redirect(url_for("servicios"))
+
 # ========= ACTUALIZAR SERVICIO (AJAX desde pedidos.html) =========
 @app.route("/actualizar_servicio_ajax", methods=["POST"])
 def actualizar_servicio_ajax():
