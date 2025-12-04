@@ -359,21 +359,22 @@ def generar_etiqueta(id_pedido):
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("""
-        SELECT 
-            p.numero_pedido,
-            c.nombre AS cliente,
-            s.referencia,
-            s.articulos_por_caja,
-            ps.cantidad,
-            col.nombre_color AS color,
-            col.codigo_html AS codigo_html
-        FROM pedidos p
-        JOIN cliente c ON p.id_cliente = c.id_cliente
-        JOIN pedido_servicio ps ON p.id_pedido = ps.id_pedido
-        JOIN servicio s ON ps.id_servicio = s.id_servicio
-        LEFT JOIN color col ON ps.id_color = col.id_color
-        WHERE p.id_pedido = %s
-    """, (id_pedido,))
+    SELECT 
+        p.numero_pedido,
+        p.id_cliente,                
+        c.nombre AS cliente,
+        s.referencia,
+        s.articulos_por_caja,
+        ps.cantidad,
+        col.nombre_color AS color,
+        col.codigo_html AS codigo_html
+    FROM pedidos p
+    JOIN cliente c ON p.id_cliente = c.id_cliente
+    JOIN pedido_servicio ps ON p.id_pedido = ps.id_pedido
+    JOIN servicio s ON ps.id_servicio = s.id_servicio AND s.id_cliente = p.id_cliente
+    LEFT JOIN color col ON ps.id_color = col.id_color
+    WHERE p.id_pedido = %s
+             """, (id_pedido,))
     registros = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -394,6 +395,9 @@ def generar_etiqueta(id_pedido):
         por_caja = r["articulos_por_caja"] or 1
         fecha = date.today().strftime("%Y-%m-%d")
 
+        id_cliente = r["id_cliente"]  # extraemos el cliente para la imagen
+        ruta_imagen = f"static/img/servicios/{ref}_{id_cliente}.png"
+
         num_cajas = math.ceil(cantidad / por_caja)
         resto = cantidad % por_caja
 
@@ -411,7 +415,7 @@ def generar_etiqueta(id_pedido):
                 pdf.drawImage(logo, 3 * mm, 37 * mm, width=12 * mm, height=8 * mm, mask="auto")
 
             # === IMAGEN IZQUIERDA ===
-            ruta_imagen = f"static/img/servicios/{ref}.png"
+            ruta_imagen = f"static/img/servicios/{ref}_{id_cliente}.png"
             img_x = 5 * mm
             img_y = 10 * mm
             img_w = 30 * mm
@@ -514,12 +518,16 @@ def colores():
 
 @app.route("/servicios")
 def servicios():
-    if not session.get("loggedin"):
-        return redirect(url_for("login"))
-
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM servicio ORDER BY id_servicio DESC")
+
+    cursor.execute("""
+        SELECT s.*, c.nombre AS cliente
+        FROM servicio s
+        JOIN cliente c ON s.id_cliente = c.id_cliente
+        ORDER BY s.id_servicio DESC
+    """)
+
     lista_servicios = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -557,41 +565,39 @@ def nuevo_servicio():
     if not session.get("loggedin"):
         return redirect(url_for("login"))
 
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Para llenar el select de clientes
+    cursor.execute("SELECT id_cliente, nombre FROM cliente")
+    clientes = cursor.fetchall()
+
     if request.method == "POST":
         referencia = request.form.get("referencia")
         descripcion = request.form.get("descripcion")
         precio = request.form.get("precio")
         articulos_por_caja = request.form.get("articulos_por_caja")
-
-        # --- imagen enviada ---
-        imagen = request.files.get("imagen")
-
-        filename = None
-
-        if imagen and allowed_file(imagen.filename):
-            filename = secure_filename(f"{referencia}.png")  # SIEMPRE guardará como referencia.png
-            imagen.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
-
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        id_cliente = request.form.get("id_cliente")  # NUEVO
 
         try:
             cursor.execute("""
-                INSERT INTO servicio (referencia, descripcion, precio, articulos_por_caja)
-                VALUES (%s, %s, %s, %s)
-            """, (referencia, descripcion, precio, articulos_por_caja))
+                INSERT INTO servicio (referencia, descripcion, precio, articulos_por_caja, id_cliente)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (referencia, descripcion, precio, articulos_por_caja, id_cliente))
             conn.commit()
-            flash("Servicio agregado correctamente ✅", "success")
+            flash("Servicio agregado correctamente", "success")
         except Exception as e:
             conn.rollback()
             flash(f"Error: {str(e)}", "danger")
 
         cursor.close()
         conn.close()
-
         return redirect(url_for("servicios"))
 
-    return render_template("servicio_form.html")
+    cursor.close()
+    conn.close()
+    return render_template("servicio_form.html", clientes=clientes)
+
 
 
 @app.route("/servicio/editar/<int:id_servicio>", methods=["GET", "POST"])

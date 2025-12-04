@@ -26,6 +26,14 @@
       <label class="form-label">Piezas por Caja</label>
       <input type="number" class="form-control" name="articulos_por_caja" required>
     </div>
+    <div class="mb-3">
+      <label class="form-label">Cliente</label>
+      <select class="form-select" name="id_cliente" required>
+        {% for c in clientes %}
+          <option value="{{ c.id_cliente }}">{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
 
     <!-- Subir imagen -->
     <div class="mb-3">
