@@ -33,17 +33,18 @@
     </div>
 
     <hr>
-   <h4>Servicios</h4>
+   <h4>Piezas</h4>
 
 <div id="servicios-container">
   <div class="row g-2 align-items-end mb-2 servicio-row">
     <div class="col-md-2">
-      <label class="form-label small">Servicio</label>
-      <select class="form-select form-select-sm" name="id_servicio[]">
-        {% for s in servicios %}
-        <option value="{{ s.id_servicio }}">{{ s.descripcion }}</option>
-        {% endfor %}
-      </select>
+      <label class="form-label small">Pieza</label>
+        <select class="form-select form-select-sm" name="id_servicio[]" required>
+          <option value="">-- Selecciona Pieza --</option>
+          {% for s in servicios %}
+            <option value="{{ s.id_servicio }}">{{ s.descripcion }}</option>
+          {% endfor %}
+        </select>
     </div>
     <div class="col-md-2">
       <label class="form-label small">Color</label>

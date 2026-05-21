@@ -20,7 +20,12 @@ app.config.from_pyfile("config.py")
 UPLOAD_FOLDER = os.path.join('static', 'img', 'servicios')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# ===== Función para validar extensión =====
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ===== Función de conexión =====
 def get_db_connection():
@@ -359,22 +364,22 @@ def generar_etiqueta(id_pedido):
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("""
-    SELECT 
-        p.numero_pedido,
-        p.id_cliente,                
-        c.nombre AS cliente,
-        s.referencia,
-        s.articulos_por_caja,
-        ps.cantidad,
-        col.nombre_color AS color,
-        col.codigo_html AS codigo_html
-    FROM pedidos p
-    JOIN cliente c ON p.id_cliente = c.id_cliente
-    JOIN pedido_servicio ps ON p.id_pedido = ps.id_pedido
-    JOIN servicio s ON ps.id_servicio = s.id_servicio AND s.id_cliente = p.id_cliente
-    LEFT JOIN color col ON ps.id_color = col.id_color
-    WHERE p.id_pedido = %s
-             """, (id_pedido,))
+        SELECT 
+            p.numero_pedido,
+            p.id_cliente,                
+            c.nombre AS cliente,
+            s.referencia,
+            s.articulos_por_caja,
+            ps.cantidad,
+            col.nombre_color AS color,
+            col.codigo_html AS codigo_html
+        FROM pedidos p
+        JOIN cliente c ON p.id_cliente = c.id_cliente
+        JOIN pedido_servicio ps ON p.id_pedido = ps.id_pedido
+        JOIN servicio s ON ps.id_servicio = s.id_servicio AND s.id_cliente = p.id_cliente
+        LEFT JOIN color col ON ps.id_color = col.id_color
+        WHERE p.id_pedido = %s
+        """, (id_pedido,))
     registros = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -387,76 +392,54 @@ def generar_etiqueta(id_pedido):
     pdf = canvas.Canvas(buffer, pagesize=(80 * mm, 50 * mm))
 
     for r in registros:
+
+        # === DATOS DEL SERVICIO (FIJOS PARA ESTE BLOQUE) ===
         ref = r["referencia"]
         color = r["color"] or "-"
         color_html = r["codigo_html"] or "#FFFFFF"
-        cantidad = r["cantidad"]
+        cantidad = int(r["cantidad"])
         num_pedido = r["numero_pedido"]
         por_caja = r["articulos_por_caja"] or 1
-        fecha = date.today().strftime("%Y-%m-%d")
+        id_cliente = r["id_cliente"]
 
-        id_cliente = r["id_cliente"]  # extraemos el cliente para la imagen
         ruta_imagen = f"static/img/servicios/{ref}_{id_cliente}.png"
 
         num_cajas = math.ceil(cantidad / por_caja)
         resto = cantidad % por_caja
 
+        # === ETIQUETAS POR CAJA (DE ESTE SERVICIO) ===
         for i in range(num_cajas):
-            cantidad_caja = resto if (i == num_cajas - 1 and resto != 0) else por_caja
 
-            # === CABECERA (más abajo para no tocar la línea) ===
+            cantidad_caja = (
+                resto if (i == num_cajas - 1 and resto != 0) else por_caja
+            )
+
+            # ===== DIBUJAR ETIQUETA =====
             pdf.setFont("Helvetica-Bold", 12)
             pdf.drawCentredString(40 * mm, 42 * mm, ref)
 
-            # === LOGO (esquina superior izquierda) ===
-            ruta_logo = "static/img/logo.png"
-            if os.path.exists(ruta_logo):
-                logo = ImageReader(ruta_logo)
-                pdf.drawImage(logo, 3 * mm, 37 * mm, width=12 * mm, height=8 * mm, mask="auto")
-
-            # === IMAGEN IZQUIERDA ===
-            ruta_imagen = f"static/img/servicios/{ref}_{id_cliente}.png"
-            img_x = 5 * mm
-            img_y = 10 * mm
-            img_w = 30 * mm
-            img_h = 28 * mm
-
+            # Imagen
             if os.path.exists(ruta_imagen):
                 img = ImageReader(ruta_imagen)
-                pdf.drawImage(img, img_x, img_y, width=img_w, height=img_h, preserveAspectRatio=True)
+                pdf.drawImage(img, 5 * mm, 10 * mm, width=30 * mm, height=28 * mm)
             else:
                 pdf.setFont("Helvetica-Oblique", 8)
-                pdf.drawCentredString(img_x + 15 * mm, img_y + 14 * mm, "(Sin imagen)")
+                pdf.drawCentredString(20 * mm, 24 * mm, "(Sin imagen)")
 
-            # === CUADRO DE INFORMACIÓN DERECHA ===
-            cuadro_x = 37 * mm
-            cuadro_y = 10 * mm
-            cuadro_w = 40 * mm
-            cuadro_h = 30 * mm
-            pdf.rect(cuadro_x, cuadro_y, cuadro_w, cuadro_h)
-
+            # Datos
             pdf.setFont("Helvetica", 9)
-            line_height = 9
-            offset_y = cuadro_y + cuadro_h - 10
+            pdf.drawString(40 * mm, 30 * mm, f"CANTIDAD: {cantidad_caja}")
+            pdf.drawString(40 * mm, 22 * mm, f"ORD: {num_pedido}")
+            pdf.drawString(40 * mm, 14 * mm, f"COLOR: {color}")
 
-            pdf.drawString(cuadro_x + 5, offset_y, f"CANTIDAD: {cantidad_caja}")
-            offset_y -= line_height + 2
-            pdf.drawString(cuadro_x + 5, offset_y, f"ORD: {num_pedido}")
-            offset_y -= line_height + 2
-            pdf.drawString(cuadro_x + 5, offset_y, f"FECHA: {fecha}")
-            offset_y -= line_height + 2
-            pdf.drawString(cuadro_x + 5, offset_y, f"COLOR: {color}")
-
-            # === CÍRCULO DEL COLOR (2 cm más abajo y más a la izquierda) ===
+            # Círculo color
             try:
                 pdf.setFillColor(HexColor(color_html))
-                pdf.circle(cuadro_x + 10, offset_y - 20, 6, fill=1, stroke=1)
+                pdf.circle(45 * mm, 10 * mm, 6, fill=1)
                 pdf.setFillColorRGB(0, 0, 0)
-            except Exception as e:
-                print("Error color:", e)
+            except:
+                pass
 
-            # === MARCO EXTERIOR ===
-            pdf.rect(2 * mm, 2 * mm, 76 * mm, 46 * mm)
             pdf.showPage()
 
     pdf.save()
@@ -568,27 +551,41 @@ def nuevo_servicio():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Para llenar el select de clientes
     cursor.execute("SELECT id_cliente, nombre FROM cliente")
     clientes = cursor.fetchall()
 
     if request.method == "POST":
-        referencia = request.form.get("referencia")
+        referencia = request.form.get("referencia").strip()
         descripcion = request.form.get("descripcion")
         precio = request.form.get("precio")
         articulos_por_caja = request.form.get("articulos_por_caja")
-        id_cliente = request.form.get("id_cliente")  # NUEVO
+        id_cliente = request.form.get("id_cliente")
+
+        imagen = request.files.get("imagen")  # 👈 AQUÍ ESTABA EL FALLO
 
         try:
+            # 1️⃣ Insertar servicio
+            cursor.close()
+            cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO servicio (referencia, descripcion, precio, articulos_por_caja, id_cliente)
                 VALUES (%s, %s, %s, %s, %s)
             """, (referencia, descripcion, precio, articulos_por_caja, id_cliente))
             conn.commit()
-            flash("Servicio agregado correctamente", "success")
+
+            # 2️⃣ Guardar imagen si existe
+            if imagen and imagen.filename != "" and allowed_file(imagen.filename):
+                extension = imagen.filename.rsplit('.', 1)[1].lower()
+                filename = f"{referencia}_{id_cliente}.{extension}"
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+                imagen.save(filepath)
+
+            flash("Servicio agregado correctamente ✅", "success")
+
         except Exception as e:
             conn.rollback()
-            flash(f"Error: {str(e)}", "danger")
+            flash(f"Error al crear el servicio: {str(e)}", "danger")
 
         cursor.close()
         conn.close()
@@ -752,7 +749,4 @@ def subir_imagen():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
-
-
-
+    app.run(host="0.0.0.0", port=5000, debug=True)
