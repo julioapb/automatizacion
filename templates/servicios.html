@@ -5,18 +5,50 @@
 <div class="container">
   <h2 class="mb-4">Listado de piezas</h2>
 
-  <a href="{{ url_for('nuevo_servicio') }}" class="btn btn-success mb-3">
-    ➕ Nueva Pieza
-  </a>
+  <div class="d-flex justify-content-between align-items-end gap-3 mb-3 flex-wrap">
+    <form method="GET" action="{{ url_for('servicios') }}" class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label for="referencia" class="form-label fw-bold">Referencia</label>
+        <input
+          type="text"
+          class="form-control"
+          id="referencia"
+          name="referencia"
+          value="{{ referencia_busqueda }}"
+          placeholder="Buscar referencia...">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-search"></i> Buscar
+        </button>
+      </div>
+      {% if referencia_busqueda %}
+      <div class="col-auto">
+        <a href="{{ url_for('servicios') }}" class="btn btn-secondary">
+          <i class="bi bi-x-circle"></i> Limpiar
+        </a>
+      </div>
+      {% endif %}
+    </form>
+
+    <a href="{{ url_for('nuevo_servicio') }}" class="btn btn-success">
+      <i class="bi bi-plus-circle"></i> Nueva Pieza
+    </a>
+  </div>
+
+  <div class="text-muted small mb-2">
+    {{ total_servicios }} resultado{% if total_servicios != 1 %}s{% endif %}
+    {% if referencia_busqueda %} para "{{ referencia_busqueda }}"{% endif %}
+  </div>
 
   <table class="table table-bordered table-striped align-middle">
     <thead class="table-dark">
       <tr>
         <th>ID</th>
         <th>Referencia</th>
-        <th>Descripción</th>
-        <th>Artículos por Caja</th>
-        <th>Precio (€)</th>
+        <th>Descripcion</th>
+        <th>Articulos por Caja</th>
+        <th>Precio (EUR)</th>
         <th>Acciones</th>
       </tr>
     </thead>
@@ -30,18 +62,74 @@
         <td>{{ "%.2f"|format(s.precio) }}</td>
         <td>
           <a href="{{ url_for('editar_servicio', id_servicio=s.id_servicio) }}" class="btn btn-sm btn-warning">
-            ✏️ Editar
+            <i class="bi bi-pencil-square"></i> Editar
           </a>
-          <a href="{{ url_for('eliminar_servicio', id_servicio=s.id_servicio) }}"
-          class="btn btn-sm btn-danger"
-          onclick="return confirm('¿Seguro que deseas eliminar este servicio?')">
-          🗑️ Eliminar
-        </a>
+          <a
+            href="{{ url_for('eliminar_servicio', id_servicio=s.id_servicio) }}"
+            class="btn btn-sm btn-danger"
+            onclick="return confirm('Seguro que deseas eliminar este servicio?')">
+            <i class="bi bi-trash"></i> Eliminar
+          </a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="text-center text-muted py-4">
+          No se encontraron piezas con esa referencia.
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
+  {% if total_pages > 1 %}
+  <nav aria-label="Paginacion de piezas">
+    <ul class="pagination justify-content-center">
+      <li class="page-item {% if page == 1 %}disabled{% endif %}">
+        <a
+          class="page-link"
+          href="{{ url_for('servicios', referencia=referencia_busqueda, page=page - 1) }}">
+          Anterior
+        </a>
+      </li>
+
+      {% if first_page_visible > 1 %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('servicios', referencia=referencia_busqueda, page=1) }}">1</a>
+      </li>
+      {% if first_page_visible > 2 %}
+      <li class="page-item disabled"><span class="page-link">...</span></li>
+      {% endif %}
+      {% endif %}
+
+      {% for p in pages %}
+      <li class="page-item {% if p == page %}active{% endif %}">
+        <a
+          class="page-link"
+          href="{{ url_for('servicios', referencia=referencia_busqueda, page=p) }}">
+          {{ p }}
+        </a>
+      </li>
+      {% endfor %}
+
+      {% if last_page_visible < total_pages %}
+      {% if last_page_visible < total_pages - 1 %}
+      <li class="page-item disabled"><span class="page-link">...</span></li>
+      {% endif %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('servicios', referencia=referencia_busqueda, page=total_pages) }}">{{ total_pages }}</a>
+      </li>
+      {% endif %}
+
+      <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+        <a
+          class="page-link"
+          href="{{ url_for('servicios', referencia=referencia_busqueda, page=page + 1) }}">
+          Siguiente
+        </a>
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
 </div>
 {% endblock %}

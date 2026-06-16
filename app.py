@@ -253,6 +253,172 @@ def nuevo_pedido():
     return render_template("pedido_form.html", clientes=clientes, colores=colores, servicios=servicios, fecha_hoy = date.today().strftime("%Y-%m-%d"))
 
 
+@app.route("/pedido/editar/<int:id_pedido>", methods=["GET", "POST"])
+def editar_pedido(id_pedido):
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT id_cliente, nombre FROM cliente")
+    clientes = cursor.fetchall()
+
+    cursor.execute("SELECT id_color, nombre_color FROM color")
+    colores = cursor.fetchall()
+
+    cursor.execute("SELECT id_servicio, referencia, descripcion FROM servicio ORDER BY referencia")
+    servicios = cursor.fetchall()
+
+    if request.method == "POST":
+        numero_pedido = request.form.get("numero_pedido")
+        id_cliente = request.form.get("id_cliente")
+        fecha_pedido = request.form.get("fecha_pedido")
+        fecha_entrega = request.form.get("fecha_entrega")
+
+        ids_detalle = request.form.getlist("id_pedido_servicio[]")
+        servicios_ids = request.form.getlist("id_servicio[]")
+        colores_ids = request.form.getlist("id_color[]")
+        cantidades = request.form.getlist("cantidad[]")
+        precios = request.form.getlist("precio_unitario[]")
+        descuentos = request.form.getlist("descuento[]")
+        fechas_recepcion = request.form.getlist("fecha_recepcion[]")
+
+        try:
+            cursor.close()
+            cursor = conn.cursor(dictionary=True)
+
+            cursor.execute("""
+                UPDATE pedidos
+                SET numero_pedido=%s, id_cliente=%s, fecha_pedido=%s, fecha_entrega=%s
+                WHERE id_pedido=%s
+            """, (numero_pedido, id_cliente, fecha_pedido, fecha_entrega, id_pedido))
+
+            cursor.execute(
+                "SELECT id_pedido_servicio FROM pedido_servicio WHERE id_pedido=%s",
+                (id_pedido,)
+            )
+            existentes = {str(row["id_pedido_servicio"]) for row in cursor.fetchall()}
+            enviados = {detalle_id for detalle_id in ids_detalle if detalle_id}
+
+            for detalle_id in existentes - enviados:
+                cursor.execute(
+                    "DELETE FROM pedido_servicio WHERE id_pedido_servicio=%s AND id_pedido=%s",
+                    (detalle_id, id_pedido)
+                )
+
+            for i, id_servicio in enumerate(servicios_ids):
+                if not id_servicio:
+                    continue
+
+                detalle_id = ids_detalle[i] if i < len(ids_detalle) else ""
+                id_color = colores_ids[i] if i < len(colores_ids) else None
+                cantidad = cantidades[i] if i < len(cantidades) else 0
+                precio = precios[i] if i < len(precios) else 0
+                descuento = descuentos[i] if i < len(descuentos) and descuentos[i] else 0
+                fecha_recepcion = fechas_recepcion[i] if i < len(fechas_recepcion) else fecha_pedido
+
+                if detalle_id:
+                    cursor.execute("""
+                        UPDATE pedido_servicio
+                        SET id_servicio=%s,
+                            id_color=%s,
+                            cantidad=%s,
+                            precio_unitario=%s,
+                            descuento=%s,
+                            fecha_recepcion=%s
+                        WHERE id_pedido_servicio=%s AND id_pedido=%s
+                    """, (
+                        id_servicio,
+                        id_color,
+                        cantidad,
+                        precio,
+                        descuento,
+                        fecha_recepcion,
+                        detalle_id,
+                        id_pedido
+                    ))
+                else:
+                    cursor.execute("""
+                        INSERT INTO pedido_servicio
+                        (id_pedido, id_servicio, id_color, cantidad, precio_unitario, descuento, fecha_recepcion)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        id_pedido,
+                        id_servicio,
+                        id_color,
+                        cantidad,
+                        precio,
+                        descuento,
+                        fecha_recepcion
+                    ))
+
+            conn.commit()
+            flash("Pedido actualizado correctamente", "success")
+            cursor.close()
+            conn.close()
+            return redirect(url_for("pedidos"))
+
+        except Exception as e:
+            conn.rollback()
+            cursor.close()
+            conn.close()
+            flash(f"No se pudo actualizar el pedido: {str(e)}", "danger")
+            return redirect(url_for("editar_pedido", id_pedido=id_pedido))
+
+    cursor.execute("SELECT * FROM pedidos WHERE id_pedido=%s", (id_pedido,))
+    pedido = cursor.fetchone()
+
+    if not pedido:
+        cursor.close()
+        conn.close()
+        flash("Pedido no encontrado", "warning")
+        return redirect(url_for("pedidos"))
+
+    cursor.execute("""
+        SELECT *
+        FROM pedido_servicio
+        WHERE id_pedido=%s
+        ORDER BY id_pedido_servicio
+    """, (id_pedido,))
+    detalles = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        "editar_pedido.html",
+        pedido=pedido,
+        detalles=detalles,
+        clientes=clientes,
+        colores=colores,
+        servicios=servicios,
+        fecha_hoy=date.today().strftime("%Y-%m-%d")
+    )
+
+
+@app.route("/pedido/eliminar/<int:id_pedido>")
+def eliminar_pedido(id_pedido):
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("DELETE FROM pedido_servicio WHERE id_pedido=%s", (id_pedido,))
+        cursor.execute("DELETE FROM pedidos WHERE id_pedido=%s", (id_pedido,))
+        conn.commit()
+        flash("Pedido eliminado correctamente", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"No se pudo eliminar el pedido: {str(e)}", "danger")
+
+    cursor.close()
+    conn.close()
+    return redirect(url_for("pedidos"))
+
+
 
 # ========== LISTAR PEDIDOS ==========
 @app.route("/pedidos")
@@ -501,21 +667,67 @@ def colores():
 
 @app.route("/servicios")
 def servicios():
+    if not session.get("loggedin"):
+        return redirect(url_for("login"))
+
+    referencia = request.args.get("referencia", "").strip()
+    page = request.args.get("page", 1, type=int)
+    per_page = 20
+
+    if page < 1:
+        page = 1
+
+    where_sql = ""
+    params = []
+
+    if referencia:
+        where_sql = "WHERE s.referencia LIKE %s"
+        params.append(f"%{referencia}%")
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute("""
+    cursor.execute(f"""
+        SELECT COUNT(*) AS total
+        FROM servicio s
+        {where_sql}
+    """, params)
+    total_servicios = cursor.fetchone()["total"]
+    total_pages = max(1, math.ceil(total_servicios / per_page))
+
+    if page > total_pages:
+        page = total_pages
+
+    offset = (page - 1) * per_page
+
+    cursor.execute(f"""
         SELECT s.*, c.nombre AS cliente
         FROM servicio s
-        JOIN cliente c ON s.id_cliente = c.id_cliente
+        LEFT JOIN cliente c ON s.id_cliente = c.id_cliente
+        {where_sql}
         ORDER BY s.id_servicio DESC
-    """)
+        LIMIT %s OFFSET %s
+    """, params + [per_page, offset])
 
     lista_servicios = cursor.fetchall()
     cursor.close()
     conn.close()
 
-    return render_template("servicios.html", servicios=lista_servicios)
+    start_page = max(1, page - 2)
+    end_page = min(total_pages, page + 2)
+    pages = range(start_page, end_page + 1)
+
+    return render_template(
+        "servicios.html",
+        servicios=lista_servicios,
+        referencia_busqueda=referencia,
+        page=page,
+        pages=pages,
+        first_page_visible=start_page,
+        last_page_visible=end_page,
+        total_pages=total_pages,
+        total_servicios=total_servicios
+    )
 
 
 @app.route("/color/eliminar/<int:id_color>")
@@ -674,7 +886,6 @@ def actualizar_servicio_ajax():
             SET cantidad=%s,
                 precio_unitario=%s,
                 descuento=%s,
-                neto=%s,
                 fecha_recepcion=%s
             WHERE id_pedido_servicio=%s
         """
@@ -683,7 +894,6 @@ def actualizar_servicio_ajax():
             data.get("cantidad"),
             data.get("precio_unitario"),
             data.get("descuento"),
-            data.get("neto"),
             data.get("fecha_recepcion"),
             id_servicio
         )

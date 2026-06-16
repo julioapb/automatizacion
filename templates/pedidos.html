@@ -5,7 +5,6 @@
 <div class="container">
   <h2 class="mb-4">Listado de Pedidos</h2>
 
-  <!-- 🔍 FILTROS -->
   <form id="filtros" class="row g-3 mb-4 align-items-end">
     <div class="col-md-3">
       <label class="form-label fw-bold">Pedido</label>
@@ -16,7 +15,7 @@
       <input type="text" class="form-control" id="filtroCliente" placeholder="Buscar cliente...">
     </div>
     <div class="col-md-3">
-      <label class="form-label fw-bold">Fecha de Recepción</label>
+      <label class="form-label fw-bold">Fecha de Recepcion</label>
       <input type="date" class="form-control" id="filtroFecha">
     </div>
     <div class="col-md-3 text-end">
@@ -26,177 +25,79 @@
     </div>
   </form>
 
-  <!-- 🧾 TABLA -->
   <div class="table-responsive">
-  <table class="table table-bordered table-striped align-middle text-center" id="tablaPedidos">
-    <thead class="table-dark">
-      <tr>
-        <th>Pedido</th>
-        <th>Cliente</th>
-        <th>Servicio</th>
-        <th>Color</th>
-        <th>Unidades</th>
-        <th>Artículos/Caja</th>
-        <th>Cajas Necesarias</th>
-        <th>Costo Unitario</th>
-        <th>Descuento</th>
-        <th>Neto</th>
-        <th>Fecha Recepción</th>
-        <th>Acciones</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for p in pedidos %}
-        {% for s in p.servicios %}
-        <tr data-id="{{ s.id_pedido_servicio }}">
-          <td>{{ p.numero_pedido }}</td>
-          <td>{{ p.cliente }}</td>
-          <td>{{ s.servicio }}</td>
-          <td>{{ s.color }}</td>
-          <td>{{ s.cantidad }}</td>
-          <td>{{ s.articulos_por_caja }}</td>
-          <td><strong>{{ s.cajas_necesarias }}</strong></td>
-          <td>{{ s.precio_unitario }}</td>
-          <td>{{ s.descuento }}</td>
-          <td>{{ s.neto }}</td>
-          <td>{{ s.fecha_recepcion }}</td>
-          <td class="text-center">
+    <table class="table table-bordered table-striped align-middle text-center" id="tablaPedidos">
+      <thead class="table-dark">
+        <tr>
+          <th>Pedido</th>
+          <th>Cliente</th>
+          <th>Servicio</th>
+          <th>Color</th>
+          <th>Unidades</th>
+          <th>Articulos/Caja</th>
+          <th>Cajas Necesarias</th>
+          <th>Costo Unitario</th>
+          <th>Descuento</th>
+          <th>Neto</th>
+          <th>Fecha Recepcion</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pedidos %}
+          {% for s in p.servicios %}
+          <tr>
+            <td>{{ p.numero_pedido }}</td>
+            <td>{{ p.cliente }}</td>
+            <td>{{ s.servicio }}</td>
+            <td>{{ s.color }}</td>
+            <td>{{ s.cantidad }}</td>
+            <td>{{ s.articulos_por_caja }}</td>
+            <td><strong>{{ s.cajas_necesarias }}</strong></td>
+            <td>{{ s.precio_unitario }}</td>
+            <td>{{ s.descuento }}</td>
+            <td>{{ s.neto }}</td>
+            <td>{{ s.fecha_recepcion }}</td>
+            <td class="text-center">
               <div class="d-flex justify-content-center gap-2">
-
-                <!-- Editar -->
-                <button 
-                  class="btn btn-warning btn-sm px-3"
-                  onclick="abrirEditarServicio('{{ s.id_pedido_servicio }}')"
-                  title="Editar servicio">
-                  <i class="bi bi-pencil-square"></i>
-                </button>
-
-                <!-- Etiqueta -->
-                <a href="{{ url_for('generar_etiqueta', id_pedido=p.id_pedido) }}"
-                   class="btn btn-primary btn-sm px-3"
-                   target="_blank"
-                   title="Generar etiqueta">
-                   <i class="bi bi-tag"></i>
+                <a
+                  href="{{ url_for('editar_pedido', id_pedido=p.id_pedido) }}"
+                  class="btn btn-success btn-sm px-3"
+                  title="Editar pedido">
+                  <i class="bi bi-pencil"></i>
                 </a>
 
+                <a
+                  href="{{ url_for('generar_etiqueta', id_pedido=p.id_pedido) }}"
+                  class="btn btn-primary btn-sm px-3"
+                  target="_blank"
+                  title="Generar etiqueta">
+                  <i class="bi bi-tag"></i>
+                </a>
+
+                <a
+                  href="{{ url_for('eliminar_pedido', id_pedido=p.id_pedido) }}"
+                  class="btn btn-danger btn-sm px-3"
+                  title="Eliminar pedido"
+                  onclick="return confirm('Seguro que deseas eliminar este pedido completo? Esta accion no se puede deshacer.')">
+                  <i class="bi bi-trash"></i>
+                </a>
               </div>
             </td>
-        </tr>
+          </tr>
+          {% endfor %}
         {% endfor %}
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+      </tbody>
+    </table>
+  </div>
 
-  <!-- 📄 PAGINACIÓN -->
   <nav>
-    <ul class="pagination justify-content-center mt-4" id="paginacion"></ul>
+    <ul class="pagination flex-wrap justify-content-center gap-1 mt-4" id="paginacion"></ul>
   </nav>
 </div>
 
-<!-- 🧾 MODAL EDITAR SERVICIO -->
-<div class="modal fade" id="modalEditar" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content shadow-lg border-0">
-      <div class="modal-header bg-dark text-white">
-        <h5 class="modal-title" id="modalEditarLabel">Editar Servicio</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <form id="formEditarServicio">
-          <input type="hidden" id="edit_id_servicio">
-
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label">Servicio</label>
-              <input type="text" id="edit_servicio" class="form-control" readonly>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Color</label>
-              <input type="text" id="edit_color" class="form-control" readonly>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Cantidad</label>
-              <input type="number" id="edit_cantidad" class="form-control" required>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Artículos/Caja</label>
-              <input type="number" id="edit_articulos" class="form-control">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Cajas Necesarias</label>
-              <input type="number" id="edit_cajas" class="form-control" readonly>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Precio Unitario (€)</label>
-              <input type="number" step="0.01" id="edit_precio" class="form-control">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Descuento (€)</label>
-              <input type="number" step="0.01" id="edit_descuento" class="form-control">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Neto (€)</label>
-              <input type="number" step="0.01" id="edit_neto" class="form-control" readonly>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Fecha Recepción</label>
-              <input type="date" id="edit_fecha" class="form-control">
-            </div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn btn-success" id="btnGuardarCambios">
-          <i class="bi bi-save"></i> Guardar Cambios
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 🔔 TOAST -->
-<div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index:1056;">
-  <div id="toastMsg" class="toast text-white bg-success shadow-lg" role="alert">
-    <div class="d-flex">
-      <div class="toast-body fw-semibold" id="toastBody"></div>
-      <button class="btn-close btn-close-white me-2 m-auto"></button>
-    </div>
-  </div>
-</div>
-
-<!-- ⚙️ SCRIPT -->
 <script>
-
-// =============================
-// ✅ FUNCION PARA ABRIR MODAL
-// =============================
-function abrirEditarServicio(id) {
-    const fila = document.querySelector(`tr[data-id="${id}"]`);
-    if (!fila) return;
-
-    const c = fila.children;
-
-    document.getElementById('edit_id_servicio').value = id;
-    document.getElementById('edit_servicio').value = c[2].innerText;
-    document.getElementById('edit_color').value = c[3].innerText;
-    document.getElementById('edit_cantidad').value = c[4].innerText;
-    document.getElementById('edit_articulos').value = c[5].innerText;
-    document.getElementById('edit_cajas').value = c[6].innerText;
-    document.getElementById('edit_precio').value = c[7].innerText;
-    document.getElementById('edit_descuento').value = c[8].innerText;
-    document.getElementById('edit_neto').value = c[9].innerText;
-    document.getElementById('edit_fecha').value = c[10].innerText;
-
-    new bootstrap.Modal(document.getElementById('modalEditar')).show();
-}
-
-// =============================
-// 📌 PAGINACION + FILTROS
-// =============================
 document.addEventListener("DOMContentLoaded", () => {
-
   const tabla = document.getElementById("tablaPedidos");
   const filas = [...tabla.querySelectorAll("tbody tr")];
   const paginacion = document.getElementById("paginacion");
@@ -229,12 +130,14 @@ document.addEventListener("DOMContentLoaded", () => {
   function mostrarPagina() {
     const visibles = obtenerFilasVisibles();
     const totalPag = Math.ceil(visibles.length / filasPorPagina) || 1;
+    paginaActual = Math.min(paginaActual, totalPag);
 
     filas.forEach(f => f.style.display = "none");
 
     visibles.forEach((fila, i) => {
-      if (i >= (paginaActual - 1) * filasPorPagina && i < paginaActual * filasPorPagina)
+      if (i >= (paginaActual - 1) * filasPorPagina && i < paginaActual * filasPorPagina) {
         fila.style.display = "";
+      }
     });
 
     actualizarPaginacion(totalPag);
@@ -246,20 +149,39 @@ document.addEventListener("DOMContentLoaded", () => {
     const add = (txt, enabled, action) => {
       const li = document.createElement("li");
       li.className = "page-item" + (enabled ? "" : " disabled");
-      li.innerHTML = `<a class="page-link">${txt}</a>`;
+      li.innerHTML = `<button type="button" class="page-link">${txt}</button>`;
       if (enabled) li.addEventListener("click", action);
       paginacion.appendChild(li);
     };
 
+    const addPage = (page) => {
+      const li = document.createElement("li");
+      li.className = "page-item" + (page === paginaActual ? " active" : "");
+      li.innerHTML = `<button type="button" class="page-link">${page}</button>`;
+      li.addEventListener("click", () => { paginaActual = page; mostrarPagina(); });
+      paginacion.appendChild(li);
+    };
+
+    const addEllipsis = () => {
+      const li = document.createElement("li");
+      li.className = "page-item disabled";
+      li.innerHTML = `<span class="page-link">...</span>`;
+      paginacion.appendChild(li);
+    };
+
+    const pages = new Set([1, totalPag]);
+    const visibleRange = 2;
+
+    for (let i = paginaActual - visibleRange; i <= paginaActual + visibleRange; i++) {
+      if (i > 1 && i < totalPag) pages.add(i);
+    }
+
     add("Anterior", paginaActual > 1, () => { paginaActual--; mostrarPagina(); });
 
-    for (let i = 1; i <= totalPag; i++) {
-      const li = document.createElement("li");
-      li.className = "page-item" + (i === paginaActual ? " active" : "");
-      li.innerHTML = `<a class="page-link">${i}</a>`;
-      li.addEventListener("click", () => { paginaActual = i; mostrarPagina(); });
-      paginacion.appendChild(li);
-    }
+    [...pages].sort((a, b) => a - b).forEach((page, index, sortedPages) => {
+      if (index > 0 && page - sortedPages[index - 1] > 1) addEllipsis();
+      addPage(page);
+    });
 
     add("Siguiente", paginaActual < totalPag, () => { paginaActual++; mostrarPagina(); });
   }
@@ -276,60 +198,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   mostrarPagina();
-
-
-  // =============================
-  // 🌟 GUARDAR CAMBIOS AJAX
-  // =============================
-  document.getElementById('btnGuardarCambios').addEventListener('click', () => {
-
-    const data = {
-      id_servicio: document.getElementById('edit_id_servicio').value,
-      cantidad: document.getElementById('edit_cantidad').value,
-      articulos_por_caja: document.getElementById('edit_articulos').value,
-      precio_unitario: document.getElementById('edit_precio').value,
-      descuento: document.getElementById('edit_descuento').value,
-      neto: document.getElementById('edit_neto').value,
-      fecha_recepcion: document.getElementById('edit_fecha').value
-    };
-
-    fetch('/actualizar_servicio_ajax', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-    .then(r => r.json())
-    .then(resp => {
-
-      const toastEl = document.getElementById('toastMsg');
-      const toastBody = document.getElementById('toastBody');
-      const toast = new bootstrap.Toast(toastEl);
-
-      if (!resp.success) {
-        toastBody.innerText = "❌ Error al guardar";
-        toastEl.classList.replace("bg-success", "bg-danger");
-        return toast.show();
-      }
-
-      // actualizar fila
-      const fila = document.querySelector(`tr[data-id="${data.id_servicio}"]`);
-      const c = fila.children;
-      c[4].innerText = data.cantidad;
-      c[5].innerText = data.articulos_por_caja;
-      c[7].innerText = data.precio_unitario;
-      c[8].innerText = data.descuento;
-      c[9].innerText = data.neto;
-      c[10].innerText = data.fecha_recepcion;
-
-      toastBody.innerText = "Cambios guardados correctamente ✅";
-      toastEl.classList.replace("bg-danger", "bg-success");
-      toast.show();
-
-      bootstrap.Modal.getInstance(document.getElementById('modalEditar')).hide();
-    });
-  });
-
 });
 </script>
-
 {% endblock %}
