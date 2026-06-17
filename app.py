@@ -18,7 +18,7 @@ app.config.from_pyfile("config.py")
 
 # Carpeta de subida y tipos permitidos
 UPLOAD_FOLDER = os.path.join('static', 'img', 'servicios')
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = ('png', 'jpg', 'jpeg')
 
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -26,6 +26,15 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # ===== Función para validar extensión =====
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# ===== Funciones auxiliares =====
+def buscar_imagen_servicio(ref, id_cliente):
+    base_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{ref}_{id_cliente}")
+    for extension in ALLOWED_EXTENSIONS:
+        ruta_imagen = f"{base_path}.{extension}"
+        if os.path.exists(ruta_imagen):
+            return ruta_imagen
+    return None
 
 # ===== Función de conexión =====
 def get_db_connection():
@@ -568,7 +577,7 @@ def generar_etiqueta(id_pedido):
         por_caja = r["articulos_por_caja"] or 1
         id_cliente = r["id_cliente"]
 
-        ruta_imagen = f"static/img/servicios/{ref}_{id_cliente}.png"
+        ruta_imagen = buscar_imagen_servicio(ref, id_cliente)
 
         num_cajas = math.ceil(cantidad / por_caja)
         resto = cantidad % por_caja
@@ -585,7 +594,7 @@ def generar_etiqueta(id_pedido):
             pdf.drawCentredString(40 * mm, 42 * mm, ref)
 
             # Imagen
-            if os.path.exists(ruta_imagen):
+            if ruta_imagen:
                 img = ImageReader(ruta_imagen)
                 pdf.drawImage(img, 5 * mm, 10 * mm, width=30 * mm, height=28 * mm)
             else:
@@ -925,25 +934,45 @@ def subir_imagen():
     if not session.get("loggedin"):
         return redirect(url_for("login"))
 
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT
+            s.id_servicio,
+            s.referencia,
+            s.descripcion,
+            s.id_cliente,
+            c.nombre AS cliente
+        FROM servicio s
+        LEFT JOIN cliente c ON s.id_cliente = c.id_cliente
+        ORDER BY c.nombre, s.referencia
+    """)
+    servicios = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
     if request.method == "POST":
         if 'imagen' not in request.files:
             flash("No se seleccionó ningún archivo", "warning")
             return redirect(request.url)
         
         file = request.files['imagen']
-        referencia = request.form.get("referencia", "").strip()
+        pieza = request.form.get("pieza", "").strip()
+        referencia, id_cliente = pieza.split("|", 1) if "|" in pieza else ("", "")
 
         if file.filename == '':
             flash("Archivo no seleccionado", "danger")
+            return redirect(request.url)
+
+        if not referencia or not id_cliente:
+            flash("Debes seleccionar la pieza", "warning")
             return redirect(request.url)
 
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             extension = filename.rsplit('.', 1)[1].lower()
 
-            # Guardar con el nombre de referencia (ej: 52-0154-001.png)
-            if referencia:
-                filename = f"{referencia}.{extension}"
+            filename = f"{referencia}_{id_cliente}.{extension}"
 
             save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(save_path)
@@ -954,7 +983,7 @@ def subir_imagen():
         flash("Formato de archivo no permitido ❌", "danger")
         return redirect(request.url)
 
-    return render_template("subir_imagen.html")
+    return render_template("subir_imagen.html", servicios=servicios)
 
 
 

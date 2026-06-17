@@ -7,17 +7,71 @@
 
   <form method="POST" enctype="multipart/form-data" class="border p-4 rounded bg-light">
     <div class="mb-3">
-      <label class="form-label">Referencia de la pieza (nombre del archivo)</label>
-      <input type="text" name="referencia" class="form-control" required placeholder="Ej: 52-0154-001">
+      <label class="form-label">Pieza</label>
+      <input
+        type="search"
+        class="form-control mb-2"
+        id="buscarPieza"
+        placeholder="Buscar por referencia, descripcion o cliente..."
+        autocomplete="off">
+      <select class="form-select" name="pieza" id="piezaSelect" required>
+        <option value="">Selecciona una pieza</option>
+        {% for s in servicios %}
+          <option
+            value="{{ s.referencia }}|{{ s.id_cliente }}"
+            data-search="{{ s.referencia }} {{ s.descripcion }} {{ s.cliente or '' }}">
+            {{ s.referencia }} - {{ s.descripcion }}{% if s.cliente %} ({{ s.cliente }}){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <div class="form-text" id="contadorPiezas"></div>
     </div>
 
     <div class="mb-3">
       <label class="form-label">Seleccionar imagen</label>
-      <input type="file" name="imagen" accept=".png,.jpg,.jpeg,.gif" class="form-control" required>
+      <input type="file" name="imagen" accept=".png,.jpg,.jpeg" class="form-control" required>
     </div>
 
     <button type="submit" class="btn btn-primary">📤 Subir Imagen</button>
     <a href="{{ url_for('panel') }}" class="btn btn-secondary">Cancelar</a>
   </form>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const buscador = document.getElementById("buscarPieza");
+  const select = document.getElementById("piezaSelect");
+  const contador = document.getElementById("contadorPiezas");
+  const opciones = [...select.options].slice(1);
+
+  function normalizar(texto) {
+    return texto
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function filtrarPiezas() {
+    const busqueda = normalizar(buscador.value.trim());
+    let visibles = 0;
+
+    opciones.forEach((opcion) => {
+      const coincide = !busqueda || normalizar(opcion.dataset.search).includes(busqueda);
+      opcion.hidden = !coincide;
+      opcion.disabled = !coincide;
+      if (coincide) visibles++;
+    });
+
+    if (select.selectedOptions[0]?.hidden) {
+      select.value = "";
+    }
+
+    contador.textContent = busqueda
+      ? `${visibles} pieza${visibles === 1 ? "" : "s"} encontrada${visibles === 1 ? "" : "s"}`
+      : "";
+  }
+
+  buscador.addEventListener("input", filtrarPiezas);
+});
+</script>
 {% endblock %}
